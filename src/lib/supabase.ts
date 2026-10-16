@@ -84,10 +84,14 @@ export const supabaseAuth = {
     // 2. Guaranteed session creation / login
     await new Promise((r) => setTimeout(r, 350));
 
+    const storedGoogle = (typeof window !== 'undefined' && localStorage.getItem('tandem_last_google_email')) || 'bcdlfo@gmail.com';
+    const googleUserPart = storedGoogle.split('@')[0] || 'Utilisateur';
+    const cleanGoogleName = googleUserPart.charAt(0).toUpperCase() + googleUserPart.slice(1);
+
     const providerDefaults: Record<string, { prenom: string; email: string; avatar: string }> = {
       google: {
-        prenom: 'Alexandre G.',
-        email: 'alexandre.google@tandem.oslo',
+        prenom: cleanGoogleName,
+        email: storedGoogle,
         avatar: '/images/portrait_french_man_1790239308331.jpg',
       },
       apple: {
@@ -106,6 +110,12 @@ export const supabaseAuth = {
     const targetEmail = userData?.email?.trim().toLowerCase() || providerDefaults[provider].email;
     const targetLang = userData?.langue_maternelle || 'français';
     const targetPhoto = userData?.photo_url || providerDefaults[provider].avatar;
+
+    if (provider === 'google' && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tandem_last_google_email', targetEmail);
+      } catch {}
+    }
 
     // Check if account already exists with this email
     const accounts = dataStore.getAccounts();

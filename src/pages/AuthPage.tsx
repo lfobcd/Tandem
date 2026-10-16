@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageView, UserProfile } from '../types';
-import { dataStore } from '../lib/supabase';
+import { dataStore, supabaseAuth } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
 import {
   Mail,
@@ -46,8 +46,64 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [socialModalProvider, setSocialModalProvider] = useState<'apple' | 'facebook' | 'google' | null>(null);
 
+  // Automatic Google Connection State
+  const [googleEmail, setGoogleEmail] = useState(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem('tandem_last_google_email')) || 'bcdlfo@gmail.com';
+  });
+  const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
+  const [showChangeGoogleEmail, setShowChangeGoogleEmail] = useState(false);
+  const [customGoogleInput, setCustomGoogleInput] = useState('');
+
+  const handleAutomaticGoogleSignIn = async (overrideEmail?: string) => {
+    setError('');
+    setAccountNotFound(false);
+    setAccountAlreadyExists(false);
+    setIsGoogleConnecting(true);
+
+    try {
+      const targetEmail = (overrideEmail || googleEmail).trim().toLowerCase();
+      const prefix = targetEmail.split('@')[0] || 'Utilisateur';
+      const cleanPrenom = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+
+      const res = await supabaseAuth.signInWithOAuth('google', {
+        email: targetEmail,
+        prenom: cleanPrenom,
+        langue_maternelle: langueMaternelle,
+      });
+
+      if (!res.success || !res.user) {
+        throw new Error(
+          res.error ||
+            (locale === 'no'
+              ? 'Kunne ikke koble til Google automatisk.'
+              : 'Échec de la connexion automatique avec Google.')
+        );
+      }
+
+      setGoogleEmail(targetEmail);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tandem_last_google_email', targetEmail);
+      }
+
+      onLoginSuccess(res.user, 'discovery');
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          (locale === 'no'
+            ? 'Feil under Google-tilkobling.'
+            : 'Erreur lors de la connexion Google.')
+      );
+    } finally {
+      setIsGoogleConnecting(false);
+    }
+  };
+
   // Trigger dedicated Social Authentication Dialog
   const handleOpenSocial = (provider: 'google' | 'apple' | 'facebook') => {
+    if (provider === 'google') {
+      handleAutomaticGoogleSignIn(googleEmail);
+      return;
+    }
     setError('');
     setAccountNotFound(false);
     setSocialModalProvider(provider);
@@ -283,12 +339,118 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         )}
 
-        {/* Social Authentication (Apple, Facebook, Google) */}
+        {/* Automatic Google Connection Card */}
+        <div className="p-3.5 bg-gradient-to-r from-blue-50/90 via-[#F9FBFC] to-blue-50/50 border border-blue-200/90 rounded-2xl space-y-2.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white border border-blue-100 flex items-center justify-center shadow-xs">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-[#1F2421]">
+                    {locale === 'no' ? 'Automatisk Google-tilkobling' : 'Connexion Google Automatique'}
+                  </span>
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Prêt" />
+                </div>
+                <span className="text-[11px] text-[#525E56] font-mono">{googleEmail}</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
+              Auto 1-Clic
+            </span>
+          </div>
+
+          <button
+            type="button"
+            disabled={isGoogleConnecting}
+            onClick={() => handleAutomaticGoogleSignIn(googleEmail)}
+            className="w-full py-2.5 px-4 bg-[#4285F4] hover:bg-[#3367D6] text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-60"
+          >
+            {isGoogleConnecting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>{locale === 'no' ? 'Kobler til automatisk...' : 'Connexion automatique en cours...'}</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                <span>
+                  {locale === 'no'
+                    ? `Logg inn automatisk med ${googleEmail}`
+                    : `Se connecter automatiquement (${googleEmail})`}
+                </span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </>
+            )}
+          </button>
+
+          <div className="flex items-center justify-between text-[11px] text-[#717A74] pt-0.5 px-0.5">
+            <span>{locale === 'no' ? 'Ingen passord kreves' : '1-clic direct, sans mot de passe'}</span>
+            <button
+              type="button"
+              onClick={() => setShowChangeGoogleEmail(!showChangeGoogleEmail)}
+              className="text-blue-700 hover:underline cursor-pointer font-medium"
+            >
+              {showChangeGoogleEmail
+                ? (locale === 'no' ? 'Lukk' : 'Fermer')
+                : (locale === 'no' ? 'Annen Google-konto?' : 'Autre compte Google ?')}
+            </button>
+          </div>
+
+          {showChangeGoogleEmail && (
+            <div className="pt-2 border-t border-blue-100 space-y-2 animate-in fade-in duration-150">
+              <label className="text-[11px] text-[#525E56] block">
+                {locale === 'no' ? 'Oppgi din Google-adresse:' : 'Entrez votre adresse Google (Gmail) :'}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={customGoogleInput}
+                  onChange={(e) => setCustomGoogleInput(e.target.value)}
+                  placeholder="votre.compte@gmail.com"
+                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#D5DDD7] rounded-xl focus:outline-none focus:border-[#4285F4]"
+                />
+                <button
+                  type="button"
+                  disabled={isGoogleConnecting}
+                  onClick={() => {
+                    if (customGoogleInput.trim()) {
+                      handleAutomaticGoogleSignIn(customGoogleInput.trim());
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-[#1F2421] text-white rounded-xl text-xs font-medium hover:bg-black transition-colors cursor-pointer shrink-0 disabled:opacity-60"
+                >
+                  {locale === 'no' ? 'Koble til' : 'Connecter'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Other Social Authentication Providers (Apple, Facebook, Google alternative) */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between text-[11px] text-[#717A74] px-1">
-            <span>{locale === 'no' ? 'Hurtiginnlogging' : 'Connexion en 1 clic'}</span>
+            <span>{locale === 'no' ? 'Eller andre alternativer' : 'Ou autres connexions sociales'}</span>
             <span className="text-[10px] font-medium text-[#2E4A3D] bg-[#F2F6F3] px-2 py-0.5 rounded-md">
-              OAuth & Social
+              Apple · Facebook · Google
             </span>
           </div>
 
@@ -318,32 +480,41 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <span>{t.authContinueWithFacebook}</span>
           </button>
 
-          {/* Google Button */}
+          {/* Google Button (direct 1-click automatic sign-in) */}
           <button
             type="button"
-            onClick={() => handleOpenSocial('google')}
-            className="w-full py-2.5 px-4 bg-white border border-[#D5DDD7] hover:border-[#1F2421] hover:bg-[#FAF8F5] rounded-xl text-xs font-medium text-[#1F2421] transition-all flex items-center justify-center gap-3 cursor-pointer shadow-xs"
-            title="Connexion sécurisée avec Google"
+            disabled={isGoogleConnecting}
+            onClick={() => handleAutomaticGoogleSignIn(googleEmail)}
+            className="w-full py-2.5 px-4 bg-white border border-[#D5DDD7] hover:border-[#1F2421] hover:bg-[#FAF8F5] rounded-xl text-xs font-medium text-[#1F2421] transition-all flex items-center justify-center gap-3 cursor-pointer shadow-xs disabled:opacity-60"
+            title="Connexion automatique avec Google"
           >
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>{t.authContinueWithGoogle}</span>
+            {isGoogleConnecting ? (
+              <div className="w-4 h-4 border-2 border-[#4285F4] border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+            )}
+            <span>
+              {isGoogleConnecting
+                ? (locale === 'no' ? 'Kobler til automatisk...' : 'Connexion automatique...')
+                : `${t.authContinueWithGoogle} (${googleEmail})`}
+            </span>
           </button>
         </div>
 

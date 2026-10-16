@@ -40,8 +40,10 @@ export const SocialAuthModal: React.FC<SocialAuthModalProps> = ({
       setPrenom('Henrik');
       setEmail('henrik.tandem@gmail.com');
     } else {
-      setPrenom('Alexandre');
-      setEmail('alexandre.tandem@gmail.com');
+      const gEmail = (typeof window !== 'undefined' && localStorage.getItem('tandem_last_google_email')) || 'bcdlfo@gmail.com';
+      const gName = gEmail.split('@')[0];
+      setPrenom(gName.charAt(0).toUpperCase() + gName.slice(1));
+      setEmail(gEmail);
     }
   }, [provider]);
 
