@@ -59,6 +59,7 @@ export interface UserProfile {
   id: string;
   email?: string;
   prenom: string;
+  is_factice?: boolean;
   langue_maternelle: Language;
   langue_apprise: Language;
   langues_secondaires?: Language[];

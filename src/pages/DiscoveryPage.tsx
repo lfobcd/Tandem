@@ -402,6 +402,28 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
         </div>
       )}
 
+      {/* Demo Mode / Fake Profiles Notice Banner */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 flex items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center justify-center font-semibold text-sm shrink-0">
+            🎭
+          </div>
+          <div>
+            <div className="font-semibold text-[#1F2421]">
+              {locale === 'no' ? 'Fiktive profiler (Demomodus)' : 'Profils factices (Mode démonstration)'}
+            </div>
+            <p className="text-amber-800 text-[11px] leading-relaxed">
+              {locale === 'no'
+                ? 'Det vises kun 2 fiktive profiler for å teste funksjonene (søk, chat og filtrering).'
+                : 'Seulement 2 profils factices sont affichés pour tester la recherche, le contact et les filtres.'}
+            </p>
+          </div>
+        </div>
+        <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-200/80 text-amber-950 border border-amber-300 shrink-0">
+          {locale === 'no' ? '2 demoprofiler' : '2 profils factices'}
+        </span>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="p-4 sm:p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs space-y-3.5">
         {/* Row 1: Quick City Selector & Proximity */}
@@ -762,9 +784,16 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                         )}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-display text-lg font-normal text-[#1F2421] group-hover:text-[#2E4A3D] transition-colors truncate">
-                          {profile.prenom}
-                        </h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-display text-lg font-normal text-[#1F2421] group-hover:text-[#2E4A3D] transition-colors truncate">
+                            {profile.prenom}
+                          </h3>
+                          {profile.is_factice && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                              {locale === 'no' ? 'Fiktiv profil' : 'Profil factice'}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-[#717A74] flex items-center gap-1 truncate">
                           <MapPin className="w-3 h-3 text-[#2E4A3D] shrink-0" />
                           <button
@@ -905,10 +934,15 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                 )}
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display text-2xl font-normal text-[#1F2421]">
                     {activeProfile.prenom}
                   </h2>
+                  {activeProfile.is_factice && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                      {locale === 'no' ? 'Fiktiv profil (Demo)' : 'Profil factice (Démo)'}
+                    </span>
+                  )}
                   <span className="text-[11px] text-[#717A74] bg-[#F5F2EB] px-2 py-0.5 rounded-full">
                     {formatLastActivity(activeProfile.derniere_activite)}
                   </span>

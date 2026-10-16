@@ -145,8 +145,8 @@ export interface UserAccount {
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'tandem_current_user_v4',
-  PROFILES: 'tandem_profiles_v3',
-  ACCOUNTS: 'tandem_accounts_v3',
+  PROFILES: 'tandem_profiles_v4',
+  ACCOUNTS: 'tandem_accounts_v4',
   CONVERSATIONS: 'tandem_conversations_v3',
   MESSAGES: 'tandem_messages_v3',
   MAPBOX_TOKEN: 'tandem_mapbox_token_v3',
@@ -194,9 +194,11 @@ export const DEFAULT_CURRENT_USER: UserProfile = {
 
 // Initialize local storage seeds if missing
 const initStorage = () => {
-  // Purge any legacy auto-logged-in Thomas from previous sessions
+  // Purge any legacy data from previous versions
   try {
     localStorage.removeItem('tandem_current_user_v3');
+    localStorage.removeItem('tandem_profiles_v3');
+    localStorage.removeItem('tandem_accounts_v3');
     const existing = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     if (existing) {
       const parsed = JSON.parse(existing);
@@ -206,8 +208,19 @@ const initStorage = () => {
     }
   } catch {}
 
-  if (!localStorage.getItem(STORAGE_KEYS.PROFILES)) {
+  const storedProfilesRaw = localStorage.getItem(STORAGE_KEYS.PROFILES);
+  if (!storedProfilesRaw) {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
+  } else {
+    try {
+      const parsed = JSON.parse(storedProfilesRaw);
+      // If old profiles cache had more than 2 profiles or missing is_factice marker, overwrite with the 2 dummy profiles
+      if (!Array.isArray(parsed) || parsed.length > 2 || !parsed.some((p) => p.is_factice)) {
+        localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
+      }
+    } catch {
+      localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
+    }
   }
   if (!localStorage.getItem(STORAGE_KEYS.ACCOUNTS)) {
     const defaultAccounts: UserAccount[] = [

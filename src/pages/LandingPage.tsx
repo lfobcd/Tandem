@@ -210,6 +210,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <h2 className="font-display text-2xl sm:text-3xl font-normal text-[#1F2421]">
               {t.activeCommunityTitle}
             </h2>
+            <p className="text-xs text-[#717A74] mt-1">
+              {locale === 'no' ? '2 fiktive demoprofiler for å teste plattformen' : '2 profils factices de démonstration pour tester la plateforme'}
+            </p>
           </div>
           <button
             onClick={() => onNavigate('discovery')}
@@ -220,15 +223,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {profiles.slice(0, 3).map((profile) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-6">
+          {profiles.slice(0, 2).map((profile) => (
             <div
               key={profile.id}
               onClick={() => onNavigate('discovery')}
               className="p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs hover:border-[#2E4A3D] transition-all cursor-pointer space-y-4"
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#EAE5DC] text-[#2E4A3D] font-display text-lg font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8]">
+                <div className="w-12 h-12 rounded-full bg-[#EAE5DC] text-[#2E4A3D] font-display text-lg font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
                   {profile.photo_url ? (
                     <img
                       src={profile.photo_url}
@@ -243,10 +246,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     profile.prenom.charAt(0)
                   )}
                 </div>
-                <div>
-                  <h3 className="font-display text-base font-normal text-[#1F2421]">
-                    {profile.prenom}
-                  </h3>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-display text-base font-normal text-[#1F2421]">
+                      {profile.prenom}
+                    </h3>
+                    {profile.is_factice && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                        {locale === 'no' ? 'Fiktiv profil' : 'Profil factice'}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-[#717A74] flex items-center gap-1">
                     <MapPin className="w-3 h-3 text-[#2E4A3D]" />
                     {profile.quartier}
