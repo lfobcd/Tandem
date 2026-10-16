@@ -36,7 +36,8 @@ function MainApp() {
   };
 
   const navigateTo = (page: PageView) => {
-    if ((page === 'messages' || page === 'profile-create') && !currentUser) {
+    const activeUser = currentUser || dataStore.getCurrentUser();
+    if ((page === 'messages' || page === 'profile-create') && !activeUser) {
       handleNavigateAuth('login');
       return;
     }
@@ -44,9 +45,11 @@ function MainApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLoginSuccess = (user: UserProfile) => {
+  const handleLoginSuccess = (user: UserProfile, targetPage: PageView = 'discovery') => {
     setCurrentUser(user);
     setProfiles(dataStore.getProfiles());
+    setCurrentPage(targetPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLogout = () => {
