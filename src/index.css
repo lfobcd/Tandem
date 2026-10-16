@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1F2421;
+    background-color: #FAF8F5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+  }
+}
+
+/* Custom map styling & scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8D2C6;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B6AEA0;
+}
+
+.mapboxgl-popup-content {
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Print Styles for A4 Poster */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-poster, #printable-poster * {
+    visibility: visible;
+  }
+  #printable-poster {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 2.5cm;
+    background: #FAF8F5 !important;
+    border: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+

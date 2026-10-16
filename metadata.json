@@ -1,0 +1,6 @@
+{
+  "name": "Prat & Parle - Tandem Franco-Norvégien",
+  "description": "Plateforme d'échange linguistique et tandem entre francophones et norvégophones avec carte interactive et messagerie.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

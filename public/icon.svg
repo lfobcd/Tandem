@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="128" fill="#1F3D2B"/>
+  <!-- Speech bubble 1 (Left - French / Deep Green & White) -->
+  <path d="M140 160 C140 137.9 157.9 120 180 120 L310 120 C332.1 120 350 137.9 350 160 L350 250 C350 272.1 332.1 290 310 290 L210 290 L150 340 L150 280 C144 274 140 262 140 250 Z" fill="#FAF8F5"/>
+  
+  <!-- Norway / Vipps accent bubble (Right - Warm Orange) -->
+  <path d="M220 220 C220 197.9 237.9 180 260 180 L360 180 C382.1 180 400 197.9 400 220 L400 300 C400 322.1 382.1 340 360 340 L350 340 L350 390 L290 340 L260 340 C237.9 340 220 322.1 220 300 Z" fill="#FF5B24"/>
+
+  <!-- Inside chat icons / text: P & P -->
+  <text x="215" y="225" font-family="system-ui, -apple-system, sans-serif" font-size="76" font-weight="800" fill="#1F3D2B" text-anchor="middle">FR</text>
+  <text x="325" y="280" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" fill="#FFFFFF" text-anchor="middle">NO</text>
+
+  <!-- Small Coffee Cup Motif at bottom left -->
+  <circle cx="160" cy="380" r="32" fill="#E8EDE6"/>
+  <path d="M148 375 C148 368 172 368 172 375 L170 390 C170 394 166 397 160 397 C154 397 150 394 150 390 Z" fill="#1F3D2B"/>
+  <path d="M170 378 C175 378 178 382 178 386 C178 390 174 392 170 392" fill="none" stroke="#1F3D2B" stroke-width="3" stroke-linecap="round"/>
+</svg>

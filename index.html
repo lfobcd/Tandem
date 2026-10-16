@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prat & Parle - Tandem Franco-Norvégien</title>
+    <meta name="description" content="Plateforme d'échange linguistique et tandem entre francophones et norvégophones avec carte interactive et messagerie." />
+    
+    <!-- Canonical & Theme -->
+    <meta name="theme-color" content="#1F3D2B" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Prat & Parle" />
+
+    <!-- Favicon & PWA Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prat & Parle" />
+    <meta property="og:title" content="Prat & Parle - Tandem Franco-Norvégien" />
+    <meta property="og:description" content="Plateforme d'échange linguistique et tandem entre francophones et norvégophones avec carte interactive et messagerie." />
+    <meta property="og:image" content="/images/hero_scandi_cafe.jpg" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Prat & Parle - Tandem Franco-Norvégien" />
+    <meta name="twitter:description" content="Plateforme d'échange linguistique et tandem entre francophones et norvégophones avec carte interactive et messagerie." />
+    <meta name="twitter:image" content="/images/hero_scandi_cafe.jpg" />
+
+    <!-- Scandinavian design fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Mapbox GL CSS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+
+    <!-- Schema.org JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Prat & Parle",
+      "alternateName": "Tandem Franco-Norvégien Oslo",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "All",
+      "description": "Plateforme d'échange linguistique et tandem entre francophones et norvégophones avec carte interactive et messagerie.",
+      "offers": {
+        "@type": "Offer",
+        "price": "39",
+        "priceCurrency": "NOK",
+        "description": "Engangsavgift for ubegrenset tilgang til kontakter og meldinger / Cotisation unique 39 kr"
+      },
+      "areaServed": {
+        "@type": "City",
+        "name": "Oslo",
+        "addressCountry": "NO"
+      }
+    }
+    </script>
+  </head>
+  <body class="bg-[#FBF9F5] text-[#222725] antialiased selection:bg-[#E8EDE6] selection:text-[#1F3D2B]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
