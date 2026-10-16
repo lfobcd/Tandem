@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageView, UserProfile } from '../types';
 import { dataStore, supabaseAuth, hasLiveSupabaseConfig } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
@@ -8,14 +8,22 @@ import { TermsModal } from '../components/TermsModal';
 interface AuthPageProps {
   onNavigate: (page: PageView) => void;
   onLoginSuccess: (user: UserProfile) => void;
+  initialMode?: 'login' | 'signup';
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({
   onNavigate,
   onLoginSuccess,
+  initialMode = 'signup',
 }) => {
   const { t, locale } = useTranslation();
-  const [isSignUp, setIsSignUp] = useState(true);
+  const [isSignUp, setIsSignUp] = useState(initialMode !== 'login');
+
+  useEffect(() => {
+    if (initialMode) {
+      setIsSignUp(initialMode === 'signup');
+    }
+  }, [initialMode]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -116,8 +124,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         onLoginSuccess({ ...fallbackAstrid, a_paye: true });
         onNavigate('discovery');
       } else {
-        const fallbackThomas = dataStore.updateCurrentUser({ a_paye: false });
-        onLoginSuccess(fallbackThomas);
+        const fallbackAlex: UserProfile = {
+          id: 'user_alex',
+          email: 'alex@tandem.org',
+          prenom: 'Alex',
+          langue_maternelle: 'français',
+          langue_apprise: 'norvégien',
+          niveau: 'A2',
+          quartier: 'Sentrum, Oslo',
+          bio: 'Hei! J\'apprends le norvégien à Oslo. Prêt pour des tandems sympas autour d\'un café !',
+          envies: 'Échanges en français et en norvégien.',
+          photo_url: '',
+          a_paye: false,
+          derniere_activite: new Date().toISOString(),
+          disponibilites: [{ day: 'mardi', slots: ['soir'] }],
+        };
+        dataStore.setCurrentUser(fallbackAlex);
+        onLoginSuccess(fallbackAlex);
         onNavigate('discovery');
       }
     }
@@ -359,11 +382,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => handleQuickDemoLogin('thomas@tandem.org')}
+                onClick={() => handleQuickDemoLogin('alex@tandem.org')}
                 className="p-2 bg-white hover:bg-[#F2EFE9] border border-[#E5E1D8] rounded-xl text-left transition-colors cursor-pointer group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#1F2421]">Thomas (0 kr)</span>
+                  <span className="text-xs font-semibold text-[#1F2421]">Alex (0 kr)</span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#F0ECE1] text-[#717A74]">Gratuit</span>
                 </div>
                 <span className="text-[10px] text-[#717A74] block mt-0.5">

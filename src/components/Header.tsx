@@ -10,22 +10,28 @@ import {
   Sparkles,
   CheckCircle2,
   HelpCircle,
+  LogOut,
+  User,
 } from 'lucide-react';
 
 interface HeaderProps {
   currentPage: PageView;
   onNavigate: (page: PageView) => void;
+  onNavigateAuth?: (mode: 'login' | 'signup') => void;
   currentUser: UserProfile | null;
   unreadCount?: number;
   onOpenPayment?: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentPage,
   onNavigate,
+  onNavigateAuth,
   currentUser,
   unreadCount = 0,
   onOpenPayment,
+  onLogout,
 }) => {
   const { t, locale, setLocale } = useTranslation();
 
@@ -170,9 +176,11 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
 
+              {/* Profile Link */}
               <button
                 onClick={() => onNavigate('profile-create')}
                 className="flex items-center gap-2 pl-2 pr-2.5 sm:pr-3 py-1 rounded-full border border-[#E5E1D8] hover:border-[#1F2421] transition-colors bg-white text-xs cursor-pointer shadow-xs"
+                title={locale === 'no' ? 'Rediger profilen din' : 'Modifier mon profil'}
               >
                 <div className="w-6 h-6 rounded-full bg-[#EAE5DC] text-[#2E4A3D] font-display text-xs font-semibold flex items-center justify-center overflow-hidden">
                   {currentUser.photo_url ? (
@@ -191,9 +199,21 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </button>
 
+              {/* Explicit Log Out Button */}
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="p-1.5 text-[#717A74] hover:text-[#B91C1C] hover:bg-[#FBEBEB] rounded-xl border border-[#E5E1D8] transition-colors cursor-pointer"
+                  title={locale === 'no' ? 'Logg ut' : 'Se déconnecter'}
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+
               <button
                 onClick={() => onNavigate('discovery')}
-                className="px-3 sm:px-4 py-2 text-xs font-medium text-white bg-[#2E4A3D] rounded-xl hover:bg-[#23382E] transition-colors whitespace-nowrap shadow-xs cursor-pointer"
+                className="hidden sm:inline-flex px-3 sm:px-4 py-2 text-xs font-medium text-white bg-[#2E4A3D] rounded-xl hover:bg-[#23382E] transition-colors whitespace-nowrap shadow-xs cursor-pointer"
               >
                 {t.navFindTandem}
               </button>
@@ -201,16 +221,22 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => onNavigate('auth')}
-                className="px-3 py-2 text-xs font-medium text-[#1F2421] hover:text-[#2E4A3D] transition-colors cursor-pointer"
+                onClick={() => (onNavigateAuth ? onNavigateAuth('login') : onNavigate('auth'))}
+                className="px-3 py-1.5 text-xs font-semibold text-[#1F2421] hover:text-[#2E4A3D] hover:bg-[#F2EFE9] rounded-xl transition-all cursor-pointer"
               >
                 {t.navLogin}
               </button>
               <button
-                onClick={() => onNavigate('auth')}
-                className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#2E4A3D] rounded-xl hover:bg-[#23382E] transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+                onClick={() => (onNavigateAuth ? onNavigateAuth('signup') : onNavigate('auth'))}
+                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#2E4A3D] rounded-xl hover:bg-[#23382E] transition-all shadow-xs cursor-pointer whitespace-nowrap"
               >
                 {t.navSignup}
+              </button>
+              <button
+                onClick={() => onNavigate('discovery')}
+                className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium text-[#525E56] border border-[#E5E1D8] rounded-xl hover:border-[#1F2421] hover:text-[#1F2421] transition-colors cursor-pointer"
+              >
+                {t.navFindTandem}
               </button>
             </div>
           )}

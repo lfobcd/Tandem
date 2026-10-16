@@ -19,6 +19,7 @@ interface LandingPageProps {
   currentUser: UserProfile | null;
   profiles: UserProfile[];
   onOpenPayment?: () => void;
+  onNavigateAuth?: (mode: 'login' | 'signup') => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -26,6 +27,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   currentUser,
   profiles,
   onOpenPayment,
+  onNavigateAuth,
 }) => {
   const { t, locale } = useTranslation();
 
@@ -71,7 +73,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* CTAs */}
             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
-                onClick={() => onNavigate(currentUser ? 'discovery' : 'auth')}
+                onClick={() => {
+                  if (currentUser) {
+                    onNavigate('discovery');
+                  } else if (onNavigateAuth) {
+                    onNavigateAuth('signup');
+                  } else {
+                    onNavigate('auth');
+                  }
+                }}
                 className="px-6 py-3.5 bg-[#2E4A3D] text-white text-sm font-medium rounded-xl hover:bg-[#23382E] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer group"
               >
                 <span>{t.heroBtnStart}</span>
@@ -329,7 +339,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
               <button
                 type="button"
-                onClick={() => onNavigate(currentUser ? 'discovery' : 'auth')}
+                onClick={() => {
+                  if (currentUser) {
+                    onNavigate('discovery');
+                  } else if (onNavigateAuth) {
+                    onNavigateAuth('signup');
+                  } else {
+                    onNavigate('auth');
+                  }
+                }}
                 className="w-full py-3 bg-white border border-[#E5E1D8] text-[#1F2421] hover:bg-[#F2EFE9] text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs text-center"
               >
                 {currentUser
@@ -386,7 +404,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 type="button"
                 onClick={() => {
                   if (!currentUser) {
-                    onNavigate('auth');
+                    if (onNavigateAuth) {
+                      onNavigateAuth('signup');
+                    } else {
+                      onNavigate('auth');
+                    }
                   } else if (onOpenPayment) {
                     onOpenPayment();
                   } else {

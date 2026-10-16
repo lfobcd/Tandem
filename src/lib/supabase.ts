@@ -144,19 +144,20 @@ export interface UserAccount {
 }
 
 const STORAGE_KEYS = {
-  CURRENT_USER: 'tandem_current_user_v3',
+  CURRENT_USER: 'tandem_current_user_v4',
   PROFILES: 'tandem_profiles_v3',
   ACCOUNTS: 'tandem_accounts_v3',
   CONVERSATIONS: 'tandem_conversations_v3',
   MESSAGES: 'tandem_messages_v3',
   MAPBOX_TOKEN: 'tandem_mapbox_token_v3',
+  EXPLICIT_LOGIN: 'tandem_user_logged_in_v4',
 };
 
-// Default current user session (starts logged in as a French learner in Oslo, or can be logged out)
+// Default current user profile template (used ONLY when testing, NEVER automatically logged in)
 export const DEFAULT_CURRENT_USER: UserProfile = {
   id: 'current_user',
-  email: 'thomas@tandem.org',
-  prenom: 'Thomas',
+  email: 'alex@tandem.org',
+  prenom: 'Alex',
   langue_maternelle: 'français',
   langue_apprise: 'norvégien',
   niveau: 'B1',
@@ -193,13 +194,25 @@ export const DEFAULT_CURRENT_USER: UserProfile = {
 
 // Initialize local storage seeds if missing
 const initStorage = () => {
+  // Purge any legacy auto-logged-in Thomas from previous sessions
+  try {
+    localStorage.removeItem('tandem_current_user_v3');
+    const existing = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (existing) {
+      const parsed = JSON.parse(existing);
+      if (parsed?.prenom === 'Thomas' && !localStorage.getItem(STORAGE_KEYS.EXPLICIT_LOGIN)) {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      }
+    }
+  } catch {}
+
   if (!localStorage.getItem(STORAGE_KEYS.PROFILES)) {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
   }
   if (!localStorage.getItem(STORAGE_KEYS.ACCOUNTS)) {
     const defaultAccounts: UserAccount[] = [
       {
-        email: 'thomas@tandem.org',
+        email: 'alex@tandem.org',
         passwordHash: 'password123',
         profile: DEFAULT_CURRENT_USER,
       },
@@ -215,9 +228,8 @@ const initStorage = () => {
     ];
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(defaultAccounts));
   }
-  if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(DEFAULT_CURRENT_USER));
-  }
+  // NOTE: We do NOT auto-assign CURRENT_USER! Visitors are guests (not logged in)
+  // until they click Log In or Sign Up.
   if (!localStorage.getItem(STORAGE_KEYS.CONVERSATIONS)) {
     localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(INITIAL_CONVERSATIONS));
   }
@@ -233,7 +245,13 @@ export const dataStore = {
     const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      const user = JSON.parse(raw);
+      // Extra safeguard against accidental legacy auto-assigned Thomas
+      if (user?.prenom === 'Thomas' && !localStorage.getItem(STORAGE_KEYS.EXPLICIT_LOGIN)) {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        return null;
+      }
+      return user;
     } catch {
       return null;
     }
@@ -242,6 +260,7 @@ export const dataStore = {
   setCurrentUser(user: UserProfile | null) {
     if (user) {
       user.derniere_activite = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEYS.EXPLICIT_LOGIN, 'true');
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
       // update in profiles list if exists
       const profiles = this.getProfiles();
@@ -251,7 +270,9 @@ export const dataStore = {
         this.saveProfiles(profiles);
       }
     } else {
+      localStorage.removeItem(STORAGE_KEYS.EXPLICIT_LOGIN);
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      localStorage.removeItem('tandem_current_user_v3');
     }
   },
 

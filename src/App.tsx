@@ -17,6 +17,7 @@ import { PaymentModal } from './components/PaymentModal';
 function MainApp() {
   const { t, locale } = useTranslation();
   const [currentPage, setCurrentPage] = useState<PageView>('landing');
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
     dataStore.getCurrentUser()
   );
@@ -28,7 +29,17 @@ function MainApp() {
   const [isLaunchKitOpen, setIsLaunchKitOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
+  const handleNavigateAuth = (mode: 'login' | 'signup' = 'signup') => {
+    setAuthMode(mode);
+    setCurrentPage('auth');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const navigateTo = (page: PageView) => {
+    if ((page === 'messages' || page === 'profile-create') && !currentUser) {
+      handleNavigateAuth('login');
+      return;
+    }
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -52,7 +63,7 @@ function MainApp() {
 
   const handleOpenPayment = () => {
     if (!currentUser) {
-      navigateTo('auth');
+      handleNavigateAuth('signup');
     } else {
       setIsPaymentModalOpen(true);
     }
@@ -70,9 +81,11 @@ function MainApp() {
       <Header
         currentPage={currentPage}
         onNavigate={navigateTo}
+        onNavigateAuth={handleNavigateAuth}
         currentUser={currentUser}
         unreadCount={1}
         onOpenPayment={handleOpenPayment}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -83,6 +96,7 @@ function MainApp() {
             currentUser={currentUser}
             profiles={profiles}
             onOpenPayment={handleOpenPayment}
+            onNavigateAuth={handleNavigateAuth}
           />
         )}
 
@@ -90,6 +104,7 @@ function MainApp() {
           <AuthPage
             onNavigate={navigateTo}
             onLoginSuccess={handleLoginSuccess}
+            initialMode={authMode}
           />
         )}
 
@@ -108,6 +123,7 @@ function MainApp() {
           <DiscoveryPage
             currentUser={currentUser}
             onNavigate={navigateTo}
+            onNavigateAuth={handleNavigateAuth}
             onStartChat={handleStartChat}
           />
         )}
