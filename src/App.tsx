@@ -12,6 +12,7 @@ import { MessagesPage } from './pages/MessagesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TermsModal } from './components/TermsModal';
 import { LaunchKitModal } from './components/LaunchKitModal';
+import { PaymentModal } from './components/PaymentModal';
 
 function MainApp() {
   const { t, locale } = useTranslation();
@@ -25,6 +26,7 @@ function MainApp() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isLaunchKitOpen, setIsLaunchKitOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const navigateTo = (page: PageView) => {
     setCurrentPage(page);
@@ -48,6 +50,20 @@ function MainApp() {
     setCurrentPage('messages');
   };
 
+  const handleOpenPayment = () => {
+    if (!currentUser) {
+      navigateTo('auth');
+    } else {
+      setIsPaymentModalOpen(true);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    const updated = dataStore.getCurrentUser();
+    setCurrentUser(updated);
+    setProfiles(dataStore.getProfiles());
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#1F2421]">
       {/* Top Bar following 3-zone contract */}
@@ -56,6 +72,7 @@ function MainApp() {
         onNavigate={navigateTo}
         currentUser={currentUser}
         unreadCount={1}
+        onOpenPayment={handleOpenPayment}
       />
 
       {/* Main Content Area */}
@@ -65,6 +82,7 @@ function MainApp() {
             onNavigate={navigateTo}
             currentUser={currentUser}
             profiles={profiles}
+            onOpenPayment={handleOpenPayment}
           />
         )}
 
@@ -174,6 +192,13 @@ function MainApp() {
       <LaunchKitModal
         isOpen={isLaunchKitOpen}
         onClose={() => setIsLaunchKitOpen(false)}
+      />
+
+      {/* Global Subscription & Payment Modal */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        onSuccess={handlePaymentSuccess}
       />
     </div>
   );

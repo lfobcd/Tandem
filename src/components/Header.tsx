@@ -17,6 +17,7 @@ interface HeaderProps {
   onNavigate: (page: PageView) => void;
   currentUser: UserProfile | null;
   unreadCount?: number;
+  onOpenPayment?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   currentUser,
   unreadCount = 0,
+  onOpenPayment,
 }) => {
   const { t, locale, setLocale } = useTranslation();
 
@@ -147,9 +149,30 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2">
           {currentUser ? (
             <div className="flex items-center gap-2">
+              {/* Subscription Button / Status */}
+              {!currentUser.a_paye ? (
+                <button
+                  type="button"
+                  onClick={onOpenPayment}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#FF5B24] bg-[#FFF4F0] hover:bg-[#FFEAE2] border border-[#FFD0C0] rounded-xl transition-all shadow-xs cursor-pointer group"
+                  title={locale === 'no' ? 'Aktiver full tilgang med Vipps eller kort (39 kr)' : 'Activer l\'accès complet par Vipps ou carte (39 NOK)'}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#FF5B24] group-hover:scale-110 transition-transform" />
+                  <span className="whitespace-nowrap">{locale === 'no' ? 'Abonnement (39 kr)' : 'Souscription (39 kr)'}</span>
+                </button>
+              ) : (
+                <div
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#2E4A3D] bg-[#E8EDE6] border border-[#C5D7C9] rounded-xl shadow-xs"
+                  title={locale === 'no' ? 'Ubegrenset tilgang aktiv' : 'Accès illimité actif'}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#2E4A3D]" />
+                  <span>{locale === 'no' ? 'Abonnent ✓' : 'Abonné ✓'}</span>
+                </div>
+              )}
+
               <button
                 onClick={() => onNavigate('profile-create')}
-                className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full border border-[#E5E1D8] hover:border-[#1F2421] transition-colors bg-white text-xs cursor-pointer shadow-xs"
+                className="flex items-center gap-2 pl-2 pr-2.5 sm:pr-3 py-1 rounded-full border border-[#E5E1D8] hover:border-[#1F2421] transition-colors bg-white text-xs cursor-pointer shadow-xs"
               >
                 <div className="w-6 h-6 rounded-full bg-[#EAE5DC] text-[#2E4A3D] font-display text-xs font-semibold flex items-center justify-center overflow-hidden">
                   {currentUser.photo_url ? (
@@ -166,16 +189,11 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="font-medium text-[#1F2421] hidden sm:inline">
                   {currentUser.prenom}
                 </span>
-                {currentUser.a_paye && (
-                  <span title={t.navStatusPaid}>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#2E4A3D]" />
-                  </span>
-                )}
               </button>
 
               <button
                 onClick={() => onNavigate('discovery')}
-                className="px-4 py-2 text-xs font-medium text-white bg-[#2E4A3D] rounded-lg hover:bg-[#23382E] transition-colors whitespace-nowrap shadow-xs cursor-pointer"
+                className="px-3 sm:px-4 py-2 text-xs font-medium text-white bg-[#2E4A3D] rounded-xl hover:bg-[#23382E] transition-colors whitespace-nowrap shadow-xs cursor-pointer"
               >
                 {t.navFindTandem}
               </button>
@@ -190,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => onNavigate('auth')}
-                className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#2E4A3D] rounded-lg hover:bg-[#23382E] transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+                className="px-3.5 py-1.5 text-xs font-medium text-white bg-[#2E4A3D] rounded-xl hover:bg-[#23382E] transition-colors shadow-xs cursor-pointer whitespace-nowrap"
               >
                 {t.navSignup}
               </button>

@@ -321,8 +321,8 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           </p>
         </div>
 
-        {currentUser && (
-          <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E5E1D8] text-xs">
+        {currentUser ? (
+          <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E5E1D8] text-xs shadow-xs">
             <div className="text-left">
               <span className="text-[#717A74] block">{t.yourStatus}</span>
               <span className="font-medium text-[#1F2421]">
@@ -343,6 +343,21 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                 <span>{t.unlockContactsBtn} (Vipps · 39 kr)</span>
               </button>
             )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E5E1D8] text-xs shadow-xs">
+            <div className="text-left">
+              <span className="text-[#717A74] block">{locale === 'no' ? 'Gjesteutforsking' : 'Mode découverte'}</span>
+              <span className="font-medium text-[#1F2421]">
+                {locale === 'no' ? '0 kr · Utforsk fritt' : '0 kr · Visite libre'}
+              </span>
+            </div>
+            <button
+              onClick={() => onNavigate('auth')}
+              className="px-3.5 py-1.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white font-medium text-xs rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-xs"
+            >
+              {locale === 'no' ? 'Logg inn / Opprett konto' : 'Connexion / Inscription'}
+            </button>
           </div>
         )}
       </div>

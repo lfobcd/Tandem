@@ -50,65 +50,74 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
-      setError('Veuillez renseigner votre email et mot de passe.');
+    if (!email.trim() || !password) {
+      setError(locale === 'no' ? 'Vennligst oppgi e-post og passord.' : 'Veuillez renseigner votre email et mot de passe.');
       return;
     }
 
     if (isSignUp && !prenom.trim()) {
-      setError('Veuillez renseigner votre prénom.');
+      setError(locale === 'no' ? 'Vennligst oppgi fornavnet ditt.' : 'Veuillez renseigner votre prénom.');
       return;
     }
 
     if (isSignUp) {
-      const newProfile: UserProfile = {
-        id: 'user_' + Date.now(),
+      const res = dataStore.registerAccount({
         email: email.trim(),
+        password,
         prenom: prenom.trim(),
         langue_maternelle: langueMaternelle,
-        langue_apprise: langueMaternelle === 'français' ? 'norvégien' : 'français',
-        niveau: 'A2',
         quartier: 'Sentrum, Oslo',
-        disponibilites: [
-          { day: 'mardi', slots: ['soir'] },
-          { day: 'jeudi', slots: ['soir'] },
-          { day: 'samedi', slots: ['matin'] },
-        ],
-        envies: locale === 'no'
-          ? 'Uformelle samtaler over en kaffe og kulturutveksling.'
-          : "Conversations informelles autour d'un café et échange culturel.",
-        bio: `Hei! Je m'appelle ${prenom.trim()} et je souhaite pratiquer le ${
-          langueMaternelle === 'français' ? 'norvégien' : 'français'
-        } !`,
-        photo_url: '',
-        a_paye: false,
-        derniere_activite: new Date().toISOString(),
-        lieux_preferes: [
-          {
-            id: 'place_default_1',
-            label: 'Café Fuglen (Sentrum)',
-            latitude: 59.9171,
-            longitude: 10.7402,
-            address: 'Universitetsgata 2, Oslo',
-            type: 'cafe',
-          },
-        ],
-      };
+      });
 
-      dataStore.setCurrentUser(newProfile);
-      onLoginSuccess(newProfile);
-      onNavigate('profile-create');
+      if (!res.success || !res.user) {
+        setError(res.error || 'Erreur lors de la création du compte.');
+        return;
+      }
+
+      onLoginSuccess(res.user);
+      onNavigate('discovery');
     } else {
-      const existing = dataStore.getCurrentUser();
-      if (existing) {
-        onLoginSuccess(existing);
+      const res = dataStore.loginAccount(email.trim(), password);
+      if (!res.success || !res.user) {
+        setError(res.error || (locale === 'no' ? 'Feil e-post eller passord.' : 'Email ou mot de passe incorrect.'));
+        return;
+      }
+
+      onLoginSuccess(res.user);
+      onNavigate('discovery');
+    }
+  };
+
+  const handleQuickDemoLogin = (emailTarget: string) => {
+    setError('');
+    const res = dataStore.loginAccount(emailTarget, 'password123');
+    if (res.success && res.user) {
+      onLoginSuccess(res.user);
+      onNavigate('discovery');
+    } else {
+      // Fallback: create and log in
+      if (emailTarget.includes('astrid')) {
+        const fallbackAstrid = dataStore.getProfiles().find(p => p.id === 'user_astrid') || {
+          id: 'user_astrid',
+          email: 'astrid@tandem.no',
+          prenom: 'Astrid',
+          langue_maternelle: 'norvégien',
+          langue_apprise: 'français',
+          niveau: 'B1',
+          quartier: 'Grünerløkka, Oslo',
+          bio: 'Hei! J\'adore discuter de culture et de cinéma autour d\'un café.',
+          envies: 'Échanges en français et en norvégien.',
+          photo_url: '/images/portrait_norwegian_woman_1790239297890.jpg',
+          a_paye: true,
+          derniere_activite: new Date().toISOString(),
+          disponibilites: [{ day: 'mardi', slots: ['soir'] }],
+        };
+        dataStore.setCurrentUser({ ...fallbackAstrid, a_paye: true });
+        onLoginSuccess({ ...fallbackAstrid, a_paye: true });
         onNavigate('discovery');
       } else {
-        const defaultUser = dataStore.updateCurrentUser({
-          email: email.trim(),
-          derniere_activite: new Date().toISOString(),
-        });
-        onLoginSuccess(defaultUser);
+        const fallbackThomas = dataStore.updateCurrentUser({ a_paye: false });
+        onLoginSuccess(fallbackThomas);
         onNavigate('discovery');
       }
     }
@@ -341,15 +350,51 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </button>
         </form>
 
-        <div className="pt-2 border-t border-[#E5E1D8] text-center space-y-2">
-          <p className="text-[11px] text-[#8C938E] flex items-center justify-center gap-1.5">
+        <div className="pt-2 border-t border-[#E5E1D8] space-y-3">
+          {/* 1-Click Fast Demo Login for instant testing */}
+          <div className="bg-[#FAF8F5] p-3 rounded-2xl border border-[#E5E1D8] space-y-2">
+            <span className="text-[11px] font-semibold text-[#525E56] block text-center">
+              {locale === 'no' ? '⚡ Hurtigtest (1-klikks innlogging)' : '⚡ Test rapide (Connexion en 1 clic)'}
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('thomas@tandem.org')}
+                className="p-2 bg-white hover:bg-[#F2EFE9] border border-[#E5E1D8] rounded-xl text-left transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#1F2421]">Thomas (0 kr)</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#F0ECE1] text-[#717A74]">Gratuit</span>
+                </div>
+                <span className="text-[10px] text-[#717A74] block mt-0.5">
+                  {locale === 'no' ? 'Lærer norsk · Ikke betalt' : 'Apprend le norsk · Non payé'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('astrid@tandem.no')}
+                className="p-2 bg-white hover:bg-[#F2EFE9] border border-[#C5D7C9] rounded-xl text-left transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#2E4A3D]">Astrid (39 kr)</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#E8EDE6] text-[#2E4A3D] font-medium">Payé ✓</span>
+                </div>
+                <span className="text-[10px] text-[#717A74] block mt-0.5">
+                  {locale === 'no' ? 'Lærer fransk · Full tilgang' : 'Apprend le français · Abonné'}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-[#8C938E] flex items-center justify-center gap-1.5 text-center">
             <ShieldCheck className="w-3.5 h-3.5 text-[#2E4A3D]" />
             {t.authTrustBadge}
           </p>
           <button
             type="button"
             onClick={() => onNavigate('discovery')}
-            className="text-xs text-[#2E4A3D] hover:underline cursor-pointer block mx-auto"
+            className="text-xs text-[#2E4A3D] hover:underline cursor-pointer block mx-auto text-center"
           >
             {locale === 'no' ? '← Utforsk profiler i Oslo uten å logge inn' : '← Explorer les tandems à Oslo sans créer de compte'}
           </button>

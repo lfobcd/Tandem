@@ -136,9 +136,17 @@ export const supabaseAuth = {
 // LOCAL STATE STORAGE REPOSITORY (Reactive fallback & storage)
 // -------------------------------------------------------------
 
+// Account definition for auth persistence
+export interface UserAccount {
+  email: string;
+  passwordHash: string;
+  profile: UserProfile;
+}
+
 const STORAGE_KEYS = {
   CURRENT_USER: 'tandem_current_user_v3',
   PROFILES: 'tandem_profiles_v3',
+  ACCOUNTS: 'tandem_accounts_v3',
   CONVERSATIONS: 'tandem_conversations_v3',
   MESSAGES: 'tandem_messages_v3',
   MAPBOX_TOKEN: 'tandem_mapbox_token_v3',
@@ -147,7 +155,7 @@ const STORAGE_KEYS = {
 // Default current user session (starts logged in as a French learner in Oslo, or can be logged out)
 export const DEFAULT_CURRENT_USER: UserProfile = {
   id: 'current_user',
-  email: 'moi@tandem.org',
+  email: 'thomas@tandem.org',
   prenom: 'Thomas',
   langue_maternelle: 'français',
   langue_apprise: 'norvégien',
@@ -187,6 +195,25 @@ export const DEFAULT_CURRENT_USER: UserProfile = {
 const initStorage = () => {
   if (!localStorage.getItem(STORAGE_KEYS.PROFILES)) {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.ACCOUNTS)) {
+    const defaultAccounts: UserAccount[] = [
+      {
+        email: 'thomas@tandem.org',
+        passwordHash: 'password123',
+        profile: DEFAULT_CURRENT_USER,
+      },
+      {
+        email: 'astrid@tandem.no',
+        passwordHash: 'password123',
+        profile: {
+          ...INITIAL_PROFILES[0],
+          email: 'astrid@tandem.no',
+          a_paye: true,
+        },
+      },
+    ];
+    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(defaultAccounts));
   }
   if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(DEFAULT_CURRENT_USER));
@@ -228,6 +255,107 @@ export const dataStore = {
     }
   },
 
+  getAccounts(): UserAccount[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  },
+
+  saveAccounts(accounts: UserAccount[]) {
+    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
+  },
+
+  registerAccount(params: {
+    email: string;
+    password: string;
+    prenom: string;
+    langue_maternelle: 'français' | 'norvégien';
+    quartier?: string;
+  }): { success: boolean; user?: UserProfile; error?: string } {
+    const accounts = this.getAccounts();
+    const existing = accounts.find((a) => a.email.toLowerCase() === params.email.trim().toLowerCase());
+    if (existing) {
+      return { success: false, error: 'Un compte existe déjà avec cette adresse email.' };
+    }
+
+    const newProfile: UserProfile = {
+      id: 'user_' + Date.now(),
+      email: params.email.trim(),
+      prenom: params.prenom.trim(),
+      langue_maternelle: params.langue_maternelle,
+      langue_apprise: params.langue_maternelle === 'français' ? 'norvégien' : 'français',
+      niveau: 'A2',
+      quartier: params.quartier || 'Sentrum, Oslo',
+      disponibilites: [
+        { day: 'mardi', slots: ['soir'] },
+        { day: 'jeudi', slots: ['soir'] },
+        { day: 'samedi', slots: ['matin'] },
+      ],
+      envies: params.langue_maternelle === 'français'
+        ? "Conversations informelles autour d'un café et échange culturel."
+        : 'Uformelle samtaler over en kaffe og kulturutveksling.',
+      bio: `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
+        params.langue_maternelle === 'français' ? 'norvégien' : 'français'
+      } !`,
+      photo_url: '',
+      a_paye: false,
+      derniere_activite: new Date().toISOString(),
+      lieux_preferes: [
+        {
+          id: 'place_user_' + Date.now(),
+          label: 'Café Fuglen (Sentrum)',
+          latitude: 59.9171,
+          longitude: 10.7402,
+          address: 'Universitetsgata 2, Oslo',
+          type: 'cafe',
+        },
+      ],
+    };
+
+    const newAccount: UserAccount = {
+      email: params.email.trim(),
+      passwordHash: params.password,
+      profile: newProfile,
+    };
+
+    accounts.push(newAccount);
+    this.saveAccounts(accounts);
+
+    // Also add to public profiles list
+    const profiles = this.getProfiles();
+    profiles.unshift(newProfile);
+    this.saveProfiles(profiles);
+
+    // Set as current logged-in user
+    this.setCurrentUser(newProfile);
+
+    return { success: true, user: newProfile };
+  },
+
+  loginAccount(email: string, password: string): { success: boolean; user?: UserProfile; error?: string } {
+    const accounts = this.getAccounts();
+    const account = accounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase());
+    if (!account) {
+      return { success: false, error: 'Aucun compte trouvé avec cet email. Veuillez vérifier ou créer un compte.' };
+    }
+
+    if (account.passwordHash && account.passwordHash !== password) {
+      return { success: false, error: 'Mot de passe incorrect.' };
+    }
+
+    // Refresh profile in case a_paye or details updated
+    const profiles = this.getProfiles();
+    const currentProfile = profiles.find((p) => p.id === account.profile.id) || account.profile;
+    currentProfile.derniere_activite = new Date().toISOString();
+
+    this.setCurrentUser(currentProfile);
+    return { success: true, user: currentProfile };
+  },
+
   getProfiles(): UserProfile[] {
     const raw = localStorage.getItem(STORAGE_KEYS.PROFILES);
     if (!raw) return INITIAL_PROFILES;
@@ -257,11 +385,38 @@ export const dataStore = {
       derniere_activite: new Date().toISOString(),
     };
     this.setCurrentUser(updated);
+
+    // Sync account profile
+    const accounts = this.getAccounts();
+    const aIdx = accounts.findIndex((a) => a.profile.id === updated.id || a.email.toLowerCase() === (updated.email || '').toLowerCase());
+    if (aIdx >= 0) {
+      accounts[aIdx].profile = updated;
+      this.saveAccounts(accounts);
+    }
+
     return updated;
   },
 
   markUserPaid(): UserProfile {
-    return this.updateCurrentUser({ a_paye: true });
+    const updated = this.updateCurrentUser({ a_paye: true });
+
+    // Sync account
+    const accounts = this.getAccounts();
+    const aIdx = accounts.findIndex((a) => a.profile.id === updated.id || a.email.toLowerCase() === (updated.email || '').toLowerCase());
+    if (aIdx >= 0) {
+      accounts[aIdx].profile.a_paye = true;
+      this.saveAccounts(accounts);
+    }
+
+    // Also update in profiles list
+    const profiles = this.getProfiles();
+    const pIdx = profiles.findIndex((p) => p.id === updated.id);
+    if (pIdx >= 0) {
+      profiles[pIdx].a_paye = true;
+      this.saveProfiles(profiles);
+    }
+
+    return updated;
   },
 
   getConversations(): Conversation[] {
