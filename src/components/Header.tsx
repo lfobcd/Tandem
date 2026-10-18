@@ -12,6 +12,7 @@ import {
   HelpCircle,
   LogOut,
   User,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -149,6 +150,24 @@ export const Header: React.FC<HeaderProps> = ({
             <Settings className="w-3.5 h-3.5" />
             <span>{t.navSettings}</span>
           </button>
+
+          {/* Admin / Gestionnaire Vipps Button */}
+          {(currentUser?.is_admin ||
+            currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' ||
+            (typeof window !== 'undefined' && localStorage.getItem('tandem_admin_session') === 'true')) && (
+            <button
+              onClick={() => onNavigate('admin')}
+              className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs ${
+                currentPage === 'admin'
+                  ? 'bg-[#2E4A3D] text-white font-semibold shadow-xs'
+                  : 'text-[#2E4A3D] bg-[#E8EDE6] hover:bg-[#D8E2D6] font-semibold'
+              }`}
+              title={locale === 'no' ? 'Vipps-administrasjon & betalte profiler' : 'Gestionnaire des souscriptions Vipps'}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#FF5B24]" />
+              <span>{locale === 'no' ? 'Vipps Admin' : 'Gestion Vipps'}</span>
+            </button>
+          )}
         </nav>
 
         {/* Zone 3: User State & Action */}

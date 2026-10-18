@@ -72,6 +72,11 @@ export interface UserProfile {
   photo_url: string;
   a_paye: boolean;
   is_completed?: boolean;
+  vipps_status?: 'none' | 'pending' | 'approved' | 'rejected';
+  vipps_phone?: string;
+  vipps_requested_at?: string;
+  vipps_approved_at?: string;
+  is_admin?: boolean;
   derniere_activite: string; // ISO string
   lieux_preferes?: PreferredPlace[];
   created_at?: string;
@@ -93,4 +98,4 @@ export interface Conversation {
   updated_at: string;
 }
 
-export type PageView = 'landing' | 'auth' | 'profile-create' | 'discovery' | 'messages' | 'settings';
+export type PageView = 'landing' | 'auth' | 'profile-create' | 'discovery' | 'messages' | 'settings' | 'admin';

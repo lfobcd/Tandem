@@ -10,6 +10,7 @@ import { ProfileEditPage } from './pages/ProfileEditPage';
 import { DiscoveryPage } from './pages/DiscoveryPage';
 import { MessagesPage } from './pages/MessagesPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AdminSubscriptionsPage } from './pages/AdminSubscriptionsPage';
 import { TermsModal } from './components/TermsModal';
 import { LaunchKitModal } from './components/LaunchKitModal';
 import { PaymentModal } from './components/PaymentModal';
@@ -151,6 +152,18 @@ function MainApp() {
             }}
           />
         )}
+
+        {currentPage === 'admin' && (
+          <AdminSubscriptionsPage
+            currentUser={currentUser}
+            onNavigate={navigateTo}
+            onRefreshData={() => {
+              setProfiles(dataStore.getProfiles());
+              const updated = dataStore.getCurrentUser();
+              if (updated) setCurrentUser(updated);
+            }}
+          />
+        )}
       </main>
 
       {/* Footer on non-chat pages */}
@@ -162,7 +175,7 @@ function MainApp() {
               <span aria-hidden="true">·</span>
               <span>{locale === 'no' ? 'Fransk-norsk språkutveksling i Oslo' : 'Tandem Franco-Norvégien à Oslo'}</span>
             </div>
-            <div className="flex items-center gap-4 text-[11px]">
+            <div className="flex items-center gap-4 text-[11px] flex-wrap">
               <button
                 onClick={() => navigateTo('discovery')}
                 className="hover:text-[#1F2421] transition-colors cursor-pointer"
@@ -174,6 +187,14 @@ function MainApp() {
                 className="hover:text-[#1F2421] transition-colors cursor-pointer"
               >
                 {t.navSettings}
+              </button>
+              <button
+                onClick={() => navigateTo('admin')}
+                className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-medium flex items-center gap-1"
+                title="Espace gestionnaire des souscriptions Vipps"
+              >
+                <span>🛡️</span>
+                <span>{locale === 'no' ? 'Vipps-administrasjon' : 'Espace Gestionnaire Vipps'}</span>
               </button>
               <button
                 onClick={() => setIsTermsOpen(true)}

@@ -203,6 +203,20 @@ export interface UserAccount {
   profile: UserProfile;
 }
 
+export interface VippsPaymentRequest {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  phone: string;
+  amountNOK: number;
+  recipient: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  approvedAt?: string;
+  adminNote?: string;
+}
+
 const STORAGE_KEYS = {
   CURRENT_USER: 'tandem_current_user_v4',
   PROFILES: 'tandem_profiles_v4',
@@ -211,6 +225,7 @@ const STORAGE_KEYS = {
   MESSAGES: 'tandem_messages_v3',
   MAPBOX_TOKEN: 'tandem_mapbox_token_v3',
   EXPLICIT_LOGIN: 'tandem_user_logged_in_v4',
+  VIPPS_REQUESTS: 'tandem_vipps_requests_v1',
 };
 
 // Default current user profile template (used ONLY when testing, NEVER automatically logged in)
@@ -324,6 +339,14 @@ export const dataStore = {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
         return null;
       }
+      // Auto-assign admin privilege to bcdlfo@gmail.com or authenticated admin session
+      if (
+        user?.email?.toLowerCase() === 'bcdlfo@gmail.com' ||
+        localStorage.getItem('tandem_admin_authenticated') === 'true'
+      ) {
+        user.is_admin = true;
+      }
+
       return user;
     } catch {
       return null;
@@ -518,6 +541,152 @@ export const dataStore = {
     }
 
     return updated;
+  },
+
+  getVippsRequests(): VippsPaymentRequest[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.VIPPS_REQUESTS);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  },
+
+  saveVippsRequests(reqs: VippsPaymentRequest[]) {
+    localStorage.setItem(STORAGE_KEYS.VIPPS_REQUESTS, JSON.stringify(reqs));
+  },
+
+  requestVippsPayment(senderPhone: string): VippsPaymentRequest {
+    const user = this.getCurrentUser() || DEFAULT_CURRENT_USER;
+    const reqs = this.getVippsRequests();
+
+    const newReq: VippsPaymentRequest = {
+      id: 'vipps_' + Date.now(),
+      userId: user.id,
+      userEmail: user.email || 'utilisateur@tandem.oslo',
+      userName: user.prenom,
+      phone: senderPhone || user.vipps_phone || 'Non renseigné',
+      amountNOK: 39,
+      recipient: '92 13 17 92',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    reqs.unshift(newReq);
+    this.saveVippsRequests(reqs);
+
+    this.updateCurrentUser({
+      vipps_status: 'pending',
+      vipps_phone: senderPhone,
+      vipps_requested_at: newReq.createdAt,
+    });
+
+    return newReq;
+  },
+
+  adminSetUserPayment(
+    userId: string,
+    isPaid: boolean,
+    vippsStatus: 'approved' | 'pending' | 'rejected' | 'none' = isPaid ? 'approved' : 'none'
+  ): { success: boolean; profile?: UserProfile } {
+    const profiles = this.getProfiles();
+    const accounts = this.getAccounts();
+    const current = this.getCurrentUser();
+
+    // 1. Update in profiles
+    const pIdx = profiles.findIndex((p) => p.id === userId);
+    let targetProfile = pIdx >= 0 ? profiles[pIdx] : null;
+
+    if (targetProfile) {
+      targetProfile.a_paye = isPaid;
+      targetProfile.vipps_status = vippsStatus;
+      if (isPaid) {
+        targetProfile.vipps_approved_at = new Date().toISOString();
+      }
+      profiles[pIdx] = { ...targetProfile };
+      this.saveProfiles(profiles);
+    }
+
+    // 2. Update in accounts
+    const aIdx = accounts.findIndex(
+      (a) =>
+        a.profile.id === userId ||
+        (targetProfile && a.email.toLowerCase() === targetProfile.email?.toLowerCase())
+    );
+    if (aIdx >= 0) {
+      accounts[aIdx].profile.a_paye = isPaid;
+      accounts[aIdx].profile.vipps_status = vippsStatus;
+      if (isPaid) {
+        accounts[aIdx].profile.vipps_approved_at = new Date().toISOString();
+      }
+      this.saveAccounts(accounts);
+      if (!targetProfile) targetProfile = accounts[aIdx].profile;
+    }
+
+    // 3. Update in current user if it's the same person
+    if (
+      current &&
+      (current.id === userId ||
+        (targetProfile && current.email?.toLowerCase() === targetProfile.email?.toLowerCase()))
+    ) {
+      const updatedCurrent = {
+        ...current,
+        a_paye: isPaid,
+        vipps_status: vippsStatus,
+        vipps_approved_at: isPaid ? new Date().toISOString() : undefined,
+      };
+      this.setCurrentUser(updatedCurrent);
+    }
+
+    // 4. Update corresponding Vipps request status
+    const reqs = this.getVippsRequests();
+    let reqUpdated = false;
+    reqs.forEach((r) => {
+      if (
+        r.userId === userId ||
+        (targetProfile && r.userEmail.toLowerCase() === targetProfile.email?.toLowerCase())
+      ) {
+        r.status = isPaid ? 'approved' : vippsStatus === 'rejected' ? 'rejected' : 'pending';
+        if (isPaid) r.approvedAt = new Date().toISOString();
+        reqUpdated = true;
+      }
+    });
+    if (reqUpdated) {
+      this.saveVippsRequests(reqs);
+    }
+
+    // Dispatch event so all components react immediately
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+    }
+
+    return { success: true, profile: targetProfile || undefined };
+  },
+
+  adminGetAllUsers(): UserProfile[] {
+    const profiles = this.getProfiles();
+    const accounts = this.getAccounts();
+    const mergedMap = new Map<string, UserProfile>();
+
+    // Add all registered accounts first
+    accounts.forEach((acc) => {
+      mergedMap.set(acc.profile.id, {
+        ...acc.profile,
+        email: acc.email,
+      });
+    });
+
+    // Add / overlay profiles
+    profiles.forEach((p) => {
+      if (mergedMap.has(p.id)) {
+        mergedMap.set(p.id, { ...mergedMap.get(p.id)!, ...p });
+      } else {
+        mergedMap.set(p.id, p);
+      }
+    });
+
+    return Array.from(mergedMap.values());
   },
 
   getConversations(): Conversation[] {

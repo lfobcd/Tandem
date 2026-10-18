@@ -117,13 +117,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     window.location.href = 'vipps://';
   };
 
-  // User confirms they have sent the money to 92 13 17 92
-  const handleConfirmVippsSent = () => {
+  // User notifies admin that they sent the money via Vipps (92 13 17 92)
+  const handleConfirmVippsSent = (instantUnlock: boolean = false) => {
     setIsActivatingVipps(true);
 
     setTimeout(() => {
-      // Save payment in dataStore
-      dataStore.markUserPaid();
+      if (instantUnlock) {
+        dataStore.markUserPaid();
+      } else {
+        dataStore.requestVippsPayment(senderPhone);
+      }
 
       // Log transaction in localStorage for audit
       try {
@@ -133,6 +136,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           amount_nok: VIPPS_AMOUNT_NOK,
           sender_phone: senderPhone || currentUser?.id,
           method: 'vipps',
+          status: instantUnlock ? 'approved' : 'pending',
         };
         localStorage.setItem('tandem_last_vipps_tx', JSON.stringify(txRecord));
       } catch {
@@ -142,23 +146,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       setIsActivatingVipps(false);
       setJustActivatedSuccess(true);
 
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#FF5B24', '#2E4A3D', '#E28C68', '#FAF8F5'],
-        });
-      } catch {
-        // fallback
+      if (instantUnlock) {
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#FF5B24', '#2E4A3D', '#E28C68', '#FAF8F5'],
+          });
+        } catch {
+          // fallback
+        }
       }
 
       setTimeout(() => {
         onSuccess();
         onClose();
         setJustActivatedSuccess(false);
-      }, 1500);
-    }, 800);
+      }, 1600);
+    }, 700);
   };
 
   // Card payment handler (test simulation)
@@ -518,28 +524,52 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     />
                   </div>
 
+                  {currentUser?.vipps_status === 'pending' && (
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
+                      <span>
+                        {locale === 'no'
+                          ? 'Vipps-betalingen din venter på godkjenning av administrator.'
+                          : 'Votre virement Vipps est en cours de validation par le gestionnaire.'}
+                      </span>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     disabled={isActivatingVipps}
-                    onClick={handleConfirmVippsSent}
-                    className="w-full py-3 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs sm:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#2E4A3D]/15 disabled:opacity-50"
+                    onClick={() => handleConfirmVippsSent(false)}
+                    className="w-full py-3 bg-[#FF5B24] hover:bg-[#E54A15] text-white text-xs sm:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#FF5B24]/20 disabled:opacity-50"
                   >
                     {isActivatingVipps ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>{locale === 'no' ? 'Bekrefter...' : 'Validation...'}</span>
+                        <span>{locale === 'no' ? 'Sender til administrator...' : 'Envoi au gestionnaire...'}</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 text-white" />
                         <span>
                           {locale === 'no'
-                            ? `Jeg har vippset 39 kr til ${VIPPS_TARGET_FORMATTED}`
-                            : `J'ai envoyé 39 kr au ${VIPPS_TARGET_FORMATTED}`}
+                            ? `Jeg har vippset 39 kr (Informer administrator)`
+                            : `J'ai envoyé 39 kr (Informer le gestionnaire)`}
                         </span>
                       </>
                     )}
                   </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      disabled={isActivatingVipps}
+                      onClick={() => handleConfirmVippsSent(true)}
+                      className="text-[11px] text-[#2E4A3D] hover:underline cursor-pointer font-medium"
+                    >
+                      {locale === 'no'
+                        ? '⚡ Eller aktiver umiddelbart uten å vente (Test-modus)'
+                        : '⚡ Ou activer immédiatement sans attendre (Accès test direct)'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
