@@ -125,6 +125,7 @@ function MainApp() {
         {currentPage === 'discovery' && (
           <DiscoveryPage
             currentUser={currentUser}
+            profiles={profiles}
             onNavigate={navigateTo}
             onNavigateAuth={handleNavigateAuth}
             onStartChat={handleStartChat}

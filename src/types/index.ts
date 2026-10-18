@@ -71,6 +71,7 @@ export interface UserProfile {
   bio: string;
   photo_url: string;
   a_paye: boolean;
+  is_completed?: boolean;
   derniere_activite: string; // ISO string
   lieux_preferes?: PreferredPlace[];
   created_at?: string;

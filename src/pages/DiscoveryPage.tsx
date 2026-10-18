@@ -19,6 +19,7 @@ import {
 
 interface DiscoveryPageProps {
   currentUser: UserProfile | null;
+  profiles?: UserProfile[];
   onNavigate: (page: PageView) => void;
   onNavigateAuth?: (mode: 'login' | 'signup') => void;
   onStartChat: (partnerId: string) => void;
@@ -26,12 +27,27 @@ interface DiscoveryPageProps {
 
 export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   currentUser,
+  profiles: profilesProp,
   onNavigate,
   onNavigateAuth,
   onStartChat,
 }) => {
   const { t, locale } = useTranslation();
-  const [profiles] = useState<UserProfile[]>(() => dataStore.getProfiles());
+  const [internalProfiles] = useState<UserProfile[]>(() => dataStore.getProfiles());
+
+  // Dynamic profiles list that includes currentUser when completed
+  const profiles = useMemo(() => {
+    const baseList = profilesProp && profilesProp.length > 0 ? profilesProp : internalProfiles;
+    if (currentUser) {
+      const exists = baseList.some((p) => p.id === currentUser.id);
+      if (!exists && (currentUser.prenom || currentUser.is_completed)) {
+        return [currentUser, ...baseList];
+      }
+      return baseList.map((p) => (p.id === currentUser.id ? currentUser : p));
+    }
+    return baseList;
+  }, [profilesProp, internalProfiles, currentUser]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all');
@@ -77,7 +93,6 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   const cityStats = useMemo(() => {
     const counts = new Map<string, number>();
     profiles.forEach((p) => {
-      if (currentUser && p.id === currentUser.id) return;
       const { city } = parseQuartier(p.quartier);
       counts.set(city, (counts.get(city) || 0) + 1);
     });
@@ -88,20 +103,19 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
         if (b.city.toLowerCase() === 'oslo') return 1;
         return b.count - a.count;
       });
-  }, [profiles, currentUser]);
+  }, [profiles]);
 
   // Neighborhoods grouped by city
   const neighborhoodsByCity = useMemo(() => {
     const map = new Map<string, Map<string, number>>();
     profiles.forEach((p) => {
-      if (currentUser && p.id === currentUser.id) return;
       const { city, neighborhood } = parseQuartier(p.quartier);
       if (!map.has(city)) map.set(city, new Map());
       const cityMap = map.get(city)!;
       cityMap.set(neighborhood, (cityMap.get(neighborhood) || 0) + 1);
     });
     return map;
-  }, [profiles, currentUser]);
+  }, [profiles]);
 
   // Available neighborhoods for current city filter
   const currentNeighborhoodList = useMemo(() => {
@@ -155,8 +169,20 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 
   // Filtered profiles
   const filteredProfiles = useMemo(() => {
-    return profiles.filter((p) => {
-      if (currentUser && p.id === currentUser.id) return false;
+    const list = profiles.filter((p) => {
+      const isCurrentUser = currentUser && p.id === currentUser.id;
+
+      // Current user's profile MUST appear in the visible profiles when completed
+      if (isCurrentUser) {
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesName = p.prenom.toLowerCase().includes(q);
+          const matchesQuartier = p.quartier.toLowerCase().includes(q);
+          const matchesBio = p.bio.toLowerCase().includes(q);
+          if (!matchesName && !matchesQuartier && !matchesBio) return false;
+        }
+        return true;
+      }
 
       // Filter compatibility: opposite native language
       if (onlyCompatible && currentUser) {
@@ -255,6 +281,17 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 
       return true;
     });
+
+    // Prioritize current user at the top of the visible profiles
+    if (currentUser) {
+      const userIndex = list.findIndex((p) => p.id === currentUser.id);
+      if (userIndex > 0) {
+        const userCard = list[userIndex];
+        const others = list.filter((_, idx) => idx !== userIndex);
+        return [userCard, ...others];
+      }
+    }
+    return list;
   }, [
     profiles,
     currentUser,
@@ -414,15 +451,50 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
             </div>
             <p className="text-amber-800 text-[11px] leading-relaxed">
               {locale === 'no'
-                ? 'Det vises kun 2 fiktive profiler for å teste funksjonene (søk, chat og filtrering).'
-                : 'Seulement 2 profils factices sont affichés pour tester la recherche, le contact et les filtres.'}
+                ? 'Det vises fiktive profiler for demonstrasjon, i tillegg til din egen fullførte profil.'
+                : 'Des profils factices de démonstration sont affichés, en plus de votre profil complété.'}
             </p>
           </div>
         </div>
         <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-200/80 text-amber-950 border border-amber-300 shrink-0">
-          {locale === 'no' ? '2 demoprofiler' : '2 profils factices'}
+          {locale === 'no' ? 'Demoprofiler + din profil' : 'Profils démo + votre profil'}
         </span>
       </div>
+
+      {/* Completed & Visible User Profile Banner */}
+      {currentUser && (currentUser.is_completed || currentUser.prenom) && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50/95 border border-emerald-300 text-xs text-emerald-950 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+              ✓
+            </div>
+            <div>
+              <div className="font-semibold text-emerald-950 text-sm flex items-center gap-2">
+                <span>
+                  {locale === 'no'
+                    ? 'Profilen din er fullført og synlig for fellesskapet !'
+                    : 'Votre profil est complété et visible dans la communauté !'}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 border border-emerald-400">
+                  {locale === 'no' ? 'Aktiv' : 'En ligne'}
+                </span>
+              </div>
+              <p className="text-emerald-800 text-[11px] leading-relaxed mt-0.5">
+                {locale === 'no'
+                  ? `Hei ${currentUser.prenom}! Profilkortet ditt vises nå øverst med bilde og møtesteder i Oslo.`
+                  : `Bonjour ${currentUser.prenom} ! Votre carte apparaît désormais ci-dessous avec votre photo et vos lieux de rencontre.`}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('profile-create')}
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-medium transition-all shrink-0 shadow-xs cursor-pointer flex items-center gap-1.5"
+          >
+            <span>{locale === 'no' ? '✏️ Rediger' : '✏️ Modifier'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="p-4 sm:p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs space-y-3.5">
@@ -758,6 +830,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProfiles.map((profile) => {
+            const isCurrentUser = Boolean(currentUser && profile.id === currentUser.id);
             const hasPaid = currentUser?.a_paye || false;
             const nativeInfo = getLanguageLabel(profile.langue_maternelle);
             const targetInfo = getLanguageLabel(profile.langue_apprise);
@@ -766,7 +839,11 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               <div
                 key={profile.id}
                 onClick={() => setActiveProfile(profile)}
-                className="group p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs hover:border-[#2E4A3D] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                className={`group p-5 bg-white rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                  isCurrentUser
+                    ? 'border-[#2E4A3D] ring-2 ring-[#2E4A3D]/25 bg-gradient-to-b from-[#FAF8F5] via-white to-white shadow-sm'
+                    : 'border-[#E5E1D8] shadow-xs hover:border-[#2E4A3D] hover:shadow-md'
+                }`}
               >
                 <div className="space-y-3.5">
                   <div className="flex items-start justify-between gap-3">
@@ -788,6 +865,12 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                           <h3 className="font-display text-lg font-normal text-[#1F2421] group-hover:text-[#2E4A3D] transition-colors truncate">
                             {profile.prenom}
                           </h3>
+                          {isCurrentUser && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#2E4A3D] text-white shrink-0 flex items-center gap-1 shadow-2xs">
+                              <Sparkles className="w-2.5 h-2.5 text-amber-300" />
+                              <span>{locale === 'no' ? 'Din profil (Synlig)' : 'Votre profil (Visible)'}</span>
+                            </span>
+                          )}
                           {profile.is_factice && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
                               {locale === 'no' ? 'Fiktiv profil' : 'Profil factice'}
@@ -881,27 +964,40 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                     {t.clickToSeeMap}
                   </span>
 
-                  <button
-                    type="button"
-                    onClick={(e) => handleContactClick(e, profile)}
-                    className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap ${
-                      hasPaid
-                        ? 'bg-[#2E4A3D] text-white hover:bg-[#23382E]'
-                        : 'bg-[#FAF8F5] text-[#2E4A3D] border border-[#D5DDD7] hover:bg-[#F2F6F3]'
-                    }`}
-                  >
-                    {hasPaid ? (
-                      <>
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>{t.contactBtnPaid}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Coffee className="w-3.5 h-3.5 text-[#2E4A3D]" />
-                        <span>{t.contactBtnFree}</span>
-                      </>
-                    )}
-                  </button>
+                  {isCurrentUser ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate('profile-create');
+                      }}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-[#2E4A3D] text-white hover:bg-[#23382E] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+                    >
+                      <span>{locale === 'no' ? '✏️ Rediger profilen min' : '✏️ Modifier mon profil'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => handleContactClick(e, profile)}
+                      className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap ${
+                        hasPaid
+                          ? 'bg-[#2E4A3D] text-white hover:bg-[#23382E]'
+                          : 'bg-[#FAF8F5] text-[#2E4A3D] border border-[#D5DDD7] hover:bg-[#F2F6F3]'
+                      }`}
+                    >
+                      {hasPaid ? (
+                        <>
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>{t.contactBtnPaid}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Coffee className="w-3.5 h-3.5 text-[#2E4A3D]" />
+                          <span>{t.contactBtnFree}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             );

@@ -12,6 +12,7 @@ import {
 import { dataStore } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
 import { MapboxPicker } from '../components/MapboxPicker';
+import { PhotoUpload } from '../components/PhotoUpload';
 import {
   MapPin,
   Clock,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Globe,
   Camera,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface ProfileEditPageProps {
@@ -121,6 +123,7 @@ export const ProfileEditPage: React.FC<ProfileEditPageProps> = ({
       photo_url: photoUrl,
       lieux_preferes: lieux,
       disponibilites,
+      is_completed: true,
     });
 
     onProfileUpdated(updated);
@@ -162,44 +165,11 @@ export const ProfileEditPage: React.FC<ProfileEditPageProps> = ({
               1. {t.authNameLabel} & {t.neighborhoodLabel}
             </h2>
 
-            <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-[#FAF8F5] border border-[#E5E1D8]">
-              <div className="w-18 h-18 rounded-2xl bg-[#EAE5DC] text-[#2E4A3D] font-display text-2xl font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
-                {photoUrl ? (
-                  <img
-                    src={photoUrl}
-                    alt={prenom}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  prenom.charAt(0) || <Camera className="w-6 h-6 text-[#8C938E]" />
-                )}
-              </div>
-
-              <div className="flex-1 w-full space-y-2">
-                <label className="text-xs font-medium text-[#525E56] block">
-                  {t.photoLabel}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={photoUrl}
-                    onChange={(e) => setPhotoUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="flex-1 px-3 py-2 text-xs bg-white border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D]"
-                  />
-                  {photoUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setPhotoUrl('')}
-                      className="px-3 py-2 text-xs text-[#717A74] hover:text-[#1F2421] border border-[#E5E1D8] rounded-xl bg-white cursor-pointer"
-                    >
-                      {t.clearPhoto}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <PhotoUpload
+              value={photoUrl}
+              onChange={setPhotoUrl}
+              prenom={prenom}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">

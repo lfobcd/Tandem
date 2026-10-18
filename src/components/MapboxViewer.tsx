@@ -182,18 +182,28 @@ export const MapboxViewer: React.FC<MapboxViewerProps> = ({
         )}
       </div>
 
-      {/* Place detail pill list */}
-      <div className="flex flex-wrap gap-1.5">
+      {/* Place detail pill list with Google Maps action */}
+      <div className="flex flex-wrap gap-2 pt-1">
         {places.map((p, idx) => (
           <div
             key={p.id}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-md border border-[#E5E1D8] text-xs text-[#2E4A3D]"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-[#E5E1D8] text-xs text-[#2E4A3D] shadow-2xs hover:border-[#2E4A3D] transition-colors"
           >
-            <span className="w-4 h-4 rounded-full bg-[#EAE5DC] text-[#2E4A3D] flex items-center justify-center text-[10px] font-bold">
+            <span className="w-4 h-4 rounded-full bg-[#2E4A3D] text-white flex items-center justify-center text-[10px] font-bold">
               {idx + 1}
             </span>
             {getPlaceIcon(p.type)}
             <span className="font-medium text-[#1F2421]">{p.label}</span>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 text-[11px] underline flex items-center gap-0.5 ml-1"
+              title="Ouvrir dans Google Maps"
+            >
+              <span>Maps</span>
+              <span className="text-[10px]">↗</span>
+            </a>
           </div>
         ))}
       </div>

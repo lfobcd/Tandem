@@ -335,13 +335,15 @@ export const dataStore = {
       user.derniere_activite = new Date().toISOString();
       localStorage.setItem(STORAGE_KEYS.EXPLICIT_LOGIN, 'true');
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-      // update in profiles list if exists
+      // update in profiles list if exists or prepend so it appears in visible profiles
       const profiles = this.getProfiles();
       const idx = profiles.findIndex((p) => p.id === user.id);
       if (idx >= 0) {
         profiles[idx] = user;
-        this.saveProfiles(profiles);
+      } else {
+        profiles.unshift(user);
       }
+      this.saveProfiles(profiles);
     } else {
       localStorage.removeItem(STORAGE_KEYS.EXPLICIT_LOGIN);
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
@@ -480,6 +482,7 @@ export const dataStore = {
     const updated = {
       ...current,
       ...updates,
+      is_completed: true,
       derniere_activite: new Date().toISOString(),
     };
     this.setCurrentUser(updated);
