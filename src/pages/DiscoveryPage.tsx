@@ -4,6 +4,7 @@ import { dataStore } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
 import { MapboxViewer } from '../components/MapboxViewer';
 import { PaymentModal } from '../components/PaymentModal';
+import { Atelier24Promo } from '../components/Atelier24Promo';
 import {
   Search,
   MapPin,
@@ -495,6 +496,9 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           </button>
         </div>
       )}
+
+      {/* Partner Spotlight: Atelier 24 */}
+      <Atelier24Promo variant="compact" />
 
       {/* Filter and Search Bar */}
       <div className="p-4 sm:p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs space-y-3.5">

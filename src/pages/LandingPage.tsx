@@ -3,6 +3,7 @@ import { PageView, UserProfile } from '../types';
 import { useTranslation } from '../lib/i18n';
 import heroCafeImage from '../assets/images/hero_scandi_cafe_1790239285793.jpg';
 import { FaqSection } from '../components/FaqSection';
+import { Atelier24Promo } from '../components/Atelier24Promo';
 import {
   ArrowRight,
   Coffee,
@@ -445,6 +446,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Partner Spotlight: Atelier 24 French Language Courses */}
+      <Atelier24Promo />
 
       {/* FAQ & Tandem Guide Section */}
       <FaqSection onNavigate={onNavigate} currentUser={currentUser} />
