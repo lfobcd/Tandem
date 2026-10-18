@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 120" fill="none">
+  <!-- Atelier 24 Brand Logo Symbol -->
+  <g id="symbol">
+    <!-- Concentric Cyan Circles -->
+    <circle cx="68" cy="60" r="48" stroke="#00A2E8" stroke-width="7" fill="none" />
+    <circle cx="68" cy="60" r="32" stroke="#00A2E8" stroke-width="7" fill="none" />
+    <circle cx="68" cy="60" r="16" stroke="#00A2E8" stroke-width="7" fill="none" />
+    <circle cx="68" cy="60" r="5" fill="#00A2E8" />
+
+    <!-- Concentric Indigo Diamonds (45-deg rotated squares) -->
+    <!-- Outer Diamond (r=48) -->
+    <polygon points="142,12 190,60 142,108 94,60" stroke="#483EB8" stroke-width="7" stroke-linejoin="miter" fill="none" />
+    <!-- Middle Diamond (r=32) -->
+    <polygon points="142,28 174,60 142,92 110,60" stroke="#483EB8" stroke-width="7" stroke-linejoin="miter" fill="none" />
+    <!-- Inner Diamond (r=16) -->
+    <polygon points="142,44 158,60 142,76 126,60" stroke="#483EB8" stroke-width="7" stroke-linejoin="miter" fill="none" />
+  </g>
+
+  <!-- Brand Wordmark "atelier 24" -->
+  <g id="wordmark" fill="#3B38B8">
+    <text x="202" y="82" font-family="Plus Jakarta Sans, Montserrat, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="-1.5">atelier<tspan dx="8" font-weight="800">24</tspan></text>
+  </g>
+</svg>

@@ -22,21 +22,25 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
   if (variant === 'compact') {
     return (
       <aside aria-label="Partenaire Atelier 24" className="p-4 rounded-2xl bg-gradient-to-r from-[#FAF8F5] via-white to-blue-50/40 border border-[#E5E1D8] shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#1E3A8A] text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
-            24
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="h-11 px-3 rounded-xl bg-white border border-[#E5E1D8] flex items-center justify-center shrink-0 shadow-2xs">
+            <img
+              src="/images/atelier24_logo.svg"
+              alt="Atelier 24"
+              className="h-7 w-auto object-contain"
+            />
           </div>
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E3A8A] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
                 {locale === 'no' ? 'Anbefalt franskskole' : 'École partenaire à Oslo'}
               </span>
-              <span className="text-xs font-semibold text-[#1F2421]">Atelier 24</span>
+              <span className="text-xs font-semibold text-[#1F2421]">Bogstadveien / Online</span>
             </div>
             <p className="text-xs text-[#525E56]">
               {locale === 'no'
-                ? 'Vil du lære fransk? Små grupper og nettkurs i Oslo siden 2008.'
-                : 'Voulez-vous apprendre le français ? Cours en petits groupes et en ligne à Oslo.'}
+                ? 'Vil du lære fransk? Små grupper, samtale og nettkurs i Oslo siden 2008.'
+                : 'Voulez-vous apprendre le français ? Cours en petits groupes, ateliers et cours en ligne à Oslo.'}
             </p>
           </div>
         </div>
@@ -64,7 +68,14 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Main Info Column */}
           <div className="lg:col-span-8 space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20 inline-flex items-center">
+                <img
+                  src="/images/atelier24_logo_white.svg"
+                  alt="Atelier 24"
+                  className="h-6 w-auto object-contain"
+                />
+              </div>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-400/30">
                 <Sparkles className="w-3 h-3 text-amber-400" />
                 <span>
@@ -159,15 +170,17 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
           {/* Action Card Column */}
           <div className="lg:col-span-4 flex flex-col justify-center">
             <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-center space-y-4 shadow-lg">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-display text-2xl font-bold shadow-md border border-white/20">
-                24
+              {/* Official Atelier 24 Logo Card */}
+              <div className="bg-white p-3.5 rounded-2xl shadow-md border border-white/20 inline-flex items-center justify-center max-w-[220px] mx-auto w-full">
+                <img
+                  src="/images/atelier24_logo.svg"
+                  alt="Atelier 24 Logo"
+                  className="w-full h-auto max-h-12 object-contain"
+                />
               </div>
 
               <div>
-                <h3 className="font-display text-lg font-semibold text-white">
-                  Atelier 24
-                </h3>
-                <span className="text-xs text-blue-200 font-medium block">
+                <span className="text-xs text-blue-200 font-semibold block">
                   {locale === 'no' ? 'Franskkurs i Oslo & Online' : 'Cours de français à Oslo & En ligne'}
                 </span>
                 <span className="text-[11px] text-slate-300 block mt-1">
