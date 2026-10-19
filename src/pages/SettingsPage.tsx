@@ -365,64 +365,39 @@ CREATE TABLE public.messages (
         </div>
       </div>
 
-      {/* Profil Gestionnaire & Souscriptions Vipps */}
-      <div className="bg-gradient-to-br from-[#F5FAF7] via-white to-[#F0F5F2] rounded-2xl border-2 border-[#2E4A3D]/25 shadow-xs p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-[#2E4A3D]" />
-              <h3 className="font-display text-base font-semibold text-[#1F2421]">
-                {locale === 'no' ? 'Administrator & Vipps-styring' : 'Profil Gestionnaire & Souscriptions Vipps'}
-              </h3>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                currentUser?.is_admin
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-amber-100 text-amber-900 border border-amber-300'
-              }`}>
-                {currentUser?.is_admin
-                  ? (locale === 'no' ? 'Aktiv administrator' : 'Gestionnaire Actif')
-                  : (locale === 'no' ? 'Standard bruker' : 'Mode Utilisateur')}
-              </span>
+      {/* Profil Gestionnaire & Souscriptions Vipps - visible UNIQUEMENT pour bcdlfo@gmail.com ou profil gestionnaire */}
+      {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+        <div className="bg-gradient-to-br from-[#F5FAF7] via-white to-[#F0F5F2] rounded-2xl border-2 border-[#2E4A3D]/25 shadow-xs p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-[#2E4A3D]" />
+                <h3 className="font-display text-base font-semibold text-[#1F2421]">
+                  {locale === 'no' ? 'Administrator & Vipps-styring' : 'Profil Gestionnaire & Souscriptions Vipps'}
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  {locale === 'no' ? 'Aktiv administrator' : 'Gestionnaire Actif'}
+                </span>
+              </div>
+              <p className="text-xs text-[#525E56] max-w-xl leading-relaxed">
+                {locale === 'no'
+                  ? 'Styr hvem som har betalt og hvem som ikke har betalt via Vipps (92 13 17 92). Godkjenn og aktiver profiler med ett klikk.'
+                  : 'Gérez qui a payé et qui n\'a pas payé via Vipps (92 13 17 92). Activez ou désactivez les profils des utilisateurs en un clic avec votre rôle gestionnaire.'}
+              </p>
             </div>
-            <p className="text-xs text-[#525E56] max-w-xl leading-relaxed">
-              {locale === 'no'
-                ? 'Styr hvem som har betalt og hvem som ikke har betalt via Vipps (92 13 17 92). Godkjenn og aktiver profiler med ett klikk.'
-                : 'Gérez qui a payé et qui n\'a pas payé via Vipps (92 13 17 92). Activez ou désactivez les profils des utilisateurs en un clic avec votre rôle gestionnaire.'}
-            </p>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => onNavigate('admin')}
-            className="px-4 py-2.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-2 cursor-pointer whitespace-nowrap self-start"
-          >
-            <span>🛡️</span>
-            <span>{locale === 'no' ? 'Åpne Vipps-kontrollpanel' : 'Ouvrir l\'Espace Gestionnaire'}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="pt-3 border-t border-[#E5E1D8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div className="text-[#717A74]">
-            {locale === 'no'
-              ? 'Tildel dette profil administrative rettigheter for å administrere Vipps-betalinger:'
-              : 'Attribuer le rôle gestionnaire administrateur à ce compte :'}
+            <button
+              type="button"
+              onClick={() => onNavigate('admin')}
+              className="px-4 py-2.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-2 cursor-pointer whitespace-nowrap self-start"
+            >
+              <span>🛡️</span>
+              <span>{locale === 'no' ? 'Åpne Vipps-kontrollpanel' : 'Ouvrir l\'Espace Gestionnaire'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleToggleAdminRole}
-            className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-              currentUser?.is_admin
-                ? 'bg-white border-[#E5E1D8] text-[#717A74] hover:text-red-600 hover:border-red-200'
-                : 'bg-[#FF5B24] border-[#FF5B24] text-white hover:bg-[#E54A15] shadow-xs'
-            }`}
-          >
-            {currentUser?.is_admin
-              ? (locale === 'no' ? 'Deaktiver administratorrolle' : 'Désactiver le rôle gestionnaire')
-              : (locale === 'no' ? 'Activer le rôle Gestionnaire Admin' : 'M\'activer comme Gestionnaire Admin')}
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Mapbox Configuration */}
       <div className="bg-white rounded-2xl border border-[#E5E1D8] shadow-xs p-6 space-y-4">

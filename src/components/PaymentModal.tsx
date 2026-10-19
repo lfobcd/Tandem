@@ -558,18 +558,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     )}
                   </button>
 
-                  <div className="text-center pt-1">
-                    <button
-                      type="button"
-                      disabled={isActivatingVipps}
-                      onClick={() => handleConfirmVippsSent(true)}
-                      className="text-[11px] text-[#2E4A3D] hover:underline cursor-pointer font-medium"
-                    >
-                      {locale === 'no'
-                        ? '⚡ Eller aktiver umiddelbart uten å vente (Test-modus)'
-                        : '⚡ Ou activer immédiatement sans attendre (Accès test direct)'}
-                    </button>
-                  </div>
+                  {/* Test-mode shortcut strictly reserved for bcdlfo@gmail.com or manager */}
+                  {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        disabled={isActivatingVipps}
+                        onClick={() => handleConfirmVippsSent(true)}
+                        className="text-[11px] text-[#2E4A3D] hover:underline cursor-pointer font-medium"
+                      >
+                        {locale === 'no'
+                          ? '⚡ Hurtigaktivering (kun synlig for administrator)'
+                          : '⚡ Activation directe (visible uniquement pour gestionnaire)'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

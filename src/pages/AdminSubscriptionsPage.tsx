@@ -40,14 +40,10 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
 }) => {
   const { locale } = useTranslation();
 
-  // Authentication check: bcdlfo@gmail.com has automatic access
+  // Authentication check: bcdlfo@gmail.com has automatic full manager access
   const isOwnerEmail = currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com';
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
-    return (
-      isOwnerEmail ||
-      Boolean(currentUser?.is_admin) ||
-      (typeof window !== 'undefined' && localStorage.getItem('tandem_admin_session') === 'true')
-    );
+    return isOwnerEmail || Boolean(currentUser?.is_admin);
   });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -322,15 +318,12 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
           <div className="pt-2 text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsAdminUnlocked(true);
-                localStorage.setItem('tandem_admin_session', 'true');
-              }}
-              className="text-[11px] text-[#2E4A3D] underline cursor-pointer hover:text-[#1F2421]"
+              onClick={() => onNavigate('auth')}
+              className="text-[11px] text-[#717A74] hover:text-[#1F2421] cursor-pointer"
             >
               {locale === 'no'
-                ? 'Fortsett som administrator (bcdlfo@gmail.com)'
-                : 'Accès direct pour bcdlfo@gmail.com'}
+                ? 'Logg inn med administrator-epost (bcdlfo@gmail.com)'
+                : 'Se connecter avec l\'email gestionnaire (bcdlfo@gmail.com)'}
             </button>
           </div>
         </form>

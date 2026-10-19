@@ -42,6 +42,15 @@ function MainApp() {
       handleNavigateAuth('login');
       return;
     }
+    // Admin page is strictly restricted to bcdlfo@gmail.com or confirmed admin
+    if (page === 'admin') {
+      const isManager = Boolean(
+        activeUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || activeUser?.is_admin
+      );
+      if (!isManager) {
+        return;
+      }
+    }
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -188,14 +197,16 @@ function MainApp() {
               >
                 {t.navSettings}
               </button>
-              <button
-                onClick={() => navigateTo('admin')}
-                className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-medium flex items-center gap-1"
-                title="Espace gestionnaire des souscriptions Vipps"
-              >
-                <span>🛡️</span>
-                <span>{locale === 'no' ? 'Vipps-administrasjon' : 'Espace Gestionnaire Vipps'}</span>
-              </button>
+              {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+                <button
+                  onClick={() => navigateTo('admin')}
+                  className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-medium flex items-center gap-1"
+                  title="Espace gestionnaire des souscriptions Vipps"
+                >
+                  <span>🛡️</span>
+                  <span>{locale === 'no' ? 'Vipps-administrasjon' : 'Espace Gestionnaire Vipps'}</span>
+                </button>
+              )}
               <button
                 onClick={() => setIsTermsOpen(true)}
                 className="hover:text-[#1F2421] transition-colors cursor-pointer underline text-[#2E4A3D]"

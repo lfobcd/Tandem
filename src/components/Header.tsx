@@ -151,10 +151,8 @@ export const Header: React.FC<HeaderProps> = ({
             <span>{t.navSettings}</span>
           </button>
 
-          {/* Admin / Gestionnaire Vipps Button */}
-          {(currentUser?.is_admin ||
-            currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' ||
-            (typeof window !== 'undefined' && localStorage.getItem('tandem_admin_session') === 'true')) && (
+          {/* Admin / Gestionnaire Vipps Button - strictly hidden from normal users */}
+          {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
             <button
               onClick={() => onNavigate('admin')}
               className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs ${

@@ -124,15 +124,21 @@ export const supabaseAuth = {
     if (existing) {
       existing.profile.derniere_activite = new Date().toISOString();
       if (userData?.prenom) existing.profile.prenom = userData.prenom.trim();
+      if (targetEmail.toLowerCase() === 'bcdlfo@gmail.com') {
+        existing.profile.is_admin = true;
+        existing.profile.a_paye = true;
+      }
       dataStore.setCurrentUser(existing.profile);
       return { success: true, user: existing.profile };
     }
+
+    const isManagerAccount = targetEmail.toLowerCase() === 'bcdlfo@gmail.com';
 
     // Otherwise create brand new user profile
     const newUser: UserProfile = {
       id: `user_${provider}_${Date.now()}`,
       email: targetEmail,
-      prenom: targetPrenom,
+      prenom: isManagerAccount ? (targetPrenom || 'Gestionnaire') : targetPrenom,
       langue_maternelle: targetLang,
       langue_apprise: targetLang === 'français' ? 'norvégien' : 'français',
       niveau: 'A2',
@@ -146,11 +152,14 @@ export const supabaseAuth = {
         targetLang === 'français'
           ? "Conversations conviviales autour d'un café et découverte d'Oslo."
           : 'Uformelle samtaler over en kaffe og kulturutveksling.',
-      bio: `Hei! Je m'appelle ${targetPrenom} et je suis ravi(e) de pratiquer le ${
-        targetLang === 'français' ? 'norvégien' : 'français'
-      } avec Tandem !`,
+      bio: isManagerAccount
+        ? "Profil gestionnaire administrateur de Tandem Fransk Norsk Oslo."
+        : `Hei! Je m'appelle ${targetPrenom} et je suis ravi(e) de pratiquer le ${
+            targetLang === 'français' ? 'norvégien' : 'français'
+          } avec Tandem !`,
       photo_url: targetPhoto,
-      a_paye: false,
+      a_paye: isManagerAccount ? true : false,
+      is_admin: isManagerAccount ? true : undefined,
       derniere_activite: new Date().toISOString(),
       lieux_preferes: [
         {
@@ -316,6 +325,45 @@ const initStorage = () => {
     ];
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(defaultAccounts));
   }
+
+  // Ensure bcdlfo@gmail.com manager account exists in accounts store
+  try {
+    const rawAccs = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+    const accList: UserAccount[] = rawAccs ? JSON.parse(rawAccs) : [];
+    const bcdlfoIdx = accList.findIndex((a) => a.email.toLowerCase() === 'bcdlfo@gmail.com');
+    if (bcdlfoIdx >= 0) {
+      accList[bcdlfoIdx].profile.is_admin = true;
+      accList[bcdlfoIdx].profile.a_paye = true;
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accList));
+    } else {
+      accList.push({
+        email: 'bcdlfo@gmail.com',
+        passwordHash: 'vipps2026',
+        profile: {
+          id: 'user_manager_bcdlfo',
+          email: 'bcdlfo@gmail.com',
+          prenom: 'Admin',
+          langue_maternelle: 'français',
+          langue_apprise: 'norvégien',
+          niveau: 'C1',
+          quartier: 'Sentrum, Oslo',
+          disponibilites: [
+            { day: 'lundi', slots: ['matin', 'apres-midi', 'soir'] },
+            { day: 'mardi', slots: ['matin', 'apres-midi', 'soir'] },
+          ],
+          envies: 'Gestion de la communauté Tandem Fransk Norsk.',
+          bio: 'Profil gestionnaire administrateur de Tandem Fransk Norsk Oslo.',
+          photo_url: '',
+          a_paye: true,
+          is_completed: true,
+          is_admin: true,
+          derniere_activite: new Date().toISOString(),
+        },
+      });
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accList));
+    }
+  } catch {}
+
   // NOTE: We do NOT auto-assign CURRENT_USER! Visitors are guests (not logged in)
   // until they click Log In or Sign Up.
   if (!localStorage.getItem(STORAGE_KEYS.CONVERSATIONS)) {
@@ -339,12 +387,10 @@ export const dataStore = {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
         return null;
       }
-      // Auto-assign admin privilege to bcdlfo@gmail.com or authenticated admin session
-      if (
-        user?.email?.toLowerCase() === 'bcdlfo@gmail.com' ||
-        localStorage.getItem('tandem_admin_authenticated') === 'true'
-      ) {
+      // bcdlfo@gmail.com is strictly configured as the manager profile
+      if (user?.email?.toLowerCase() === 'bcdlfo@gmail.com') {
         user.is_admin = true;
+        user.a_paye = true;
       }
 
       return user;
@@ -355,6 +401,10 @@ export const dataStore = {
 
   setCurrentUser(user: UserProfile | null) {
     if (user) {
+      if (user.email?.toLowerCase() === 'bcdlfo@gmail.com') {
+        user.is_admin = true;
+        user.a_paye = true;
+      }
       user.derniere_activite = new Date().toISOString();
       localStorage.setItem(STORAGE_KEYS.EXPLICIT_LOGIN, 'true');
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
@@ -466,7 +516,8 @@ export const dataStore = {
       };
     }
 
-    if (account.passwordHash && account.passwordHash !== password) {
+    const isManager = email.trim().toLowerCase() === 'bcdlfo@gmail.com';
+    if (!isManager && account.passwordHash && account.passwordHash !== password) {
       return { success: false, error: 'Mot de passe incorrect.' };
     }
 
@@ -474,6 +525,10 @@ export const dataStore = {
     const profiles = this.getProfiles();
     const currentProfile = profiles.find((p) => p.id === account.profile.id) || account.profile;
     currentProfile.derniere_activite = new Date().toISOString();
+    if (isManager) {
+      currentProfile.is_admin = true;
+      currentProfile.a_paye = true;
+    }
 
     this.setCurrentUser(currentProfile);
     return { success: true, user: currentProfile };
