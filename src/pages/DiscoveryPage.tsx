@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PageView, UserProfile, SUPPORTED_LANGUAGES, AvailableLanguage } from '../types';
 import { dataStore } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
@@ -16,7 +16,94 @@ import {
   Building,
   Compass,
   Check,
+  Heart,
+  Tag,
+  SlidersHorizontal,
+  ArrowUpDown,
 } from 'lucide-react';
+
+export interface InterestCategory {
+  id: string;
+  labelFr: string;
+  labelNo: string;
+  emoji: string;
+  keywords: string[];
+}
+
+export const INTEREST_CATEGORIES: InterestCategory[] = [
+  {
+    id: 'cafe',
+    labelFr: 'Café & Discussion',
+    labelNo: 'Kaffe & Prat',
+    emoji: '☕',
+    keywords: ['café', 'kaffe', 'prat', 'conversation', 'discuter', 'papoter', 'boire', 'fika', 'thé', 'bar'],
+  },
+  {
+    id: 'nature',
+    labelFr: 'Randonnée & Nature',
+    labelNo: 'Friluftsliv & Marka',
+    emoji: '🥾',
+    keywords: ['randonnée', 'tur', 'marka', 'ski', 'nature', 'plein air', 'nordmarka', 'fjord', 'balade', 'sognsvann', 'skog', 'hytte', 'montagne', 'fjell'],
+  },
+  {
+    id: 'culture',
+    labelFr: 'Art & Musées',
+    labelNo: 'Kunst & Kultur',
+    emoji: '🎨',
+    keywords: ['art', 'musée', 'museum', 'kunst', 'kultur', 'expo', 'exposition', 'peinture', 'munch', 'design', 'architecture', 'histoire', 'teater', 'théâtre'],
+  },
+  {
+    id: 'lecture',
+    labelFr: 'Lecture & Livres',
+    labelNo: 'Bøker & Litteratur',
+    emoji: '📚',
+    keywords: ['lecture', 'livre', 'bok', 'bøker', 'litteratur', 'littérature', 'deichman', 'bibliothèque', 'bibliotek', 'roman', 'lire'],
+  },
+  {
+    id: 'sport',
+    labelFr: 'Sport & Vélo',
+    labelNo: 'Sport & Trening',
+    emoji: '🚴',
+    keywords: ['sport', 'sykkel', 'vélo', 'løping', 'running', 'course', 'jogging', 'yoga', 'escalade', 'klatring', 'kayak', 'kajakk', 'bade', 'baignade'],
+  },
+  {
+    id: 'food',
+    labelFr: 'Gastronomie & Cuisine',
+    labelNo: 'Mat & Gastronomi',
+    emoji: '🍷',
+    keywords: ['cuisine', 'mat', 'gastronomie', 'vin', 'restaurant', 'manger', 'baking', 'pâtisserie', 'fromage', 'ost', 'recette', 'middag'],
+  },
+  {
+    id: 'cinema',
+    labelFr: 'Cinéma & Séries',
+    labelNo: 'Film & Serier',
+    emoji: '🎬',
+    keywords: ['cinéma', 'film', 'kino', 'série', 'serier', 'docu', 'documentaire', 'netflix'],
+  },
+  {
+    id: 'music',
+    labelFr: 'Musique & Concerts',
+    labelNo: 'Musikk & Konserter',
+    emoji: '🎵',
+    keywords: ['musique', 'musikk', 'concert', 'konsert', 'guitare', 'piano', 'chanson', 'sang', 'jazz', 'rock', 'opera'],
+  },
+  {
+    id: 'travel',
+    labelFr: 'Voyages & Découvertes',
+    labelNo: 'Reise & Utforskning',
+    emoji: '✈️',
+    keywords: ['voyage', 'reise', 'voyager', 'découverte', 'expat', 'langues', 'språk', 'international'],
+  },
+];
+
+export const profileMatchesInterest = (profile: UserProfile, category: InterestCategory): boolean => {
+  const text = `${profile.envies || ''} ${profile.bio || ''} ${profile.lieux_preferes?.map((l) => `${l.label} ${l.address || ''}`).join(' ') || ''}`.toLowerCase();
+  return category.keywords.some((kw) => text.includes(kw.toLowerCase()));
+};
+
+export const getProfileMatchingInterests = (profile: UserProfile): InterestCategory[] => {
+  return INTEREST_CATEGORIES.filter((cat) => profileMatchesInterest(profile, cat));
+};
 
 interface DiscoveryPageProps {
   currentUser: UserProfile | null;
@@ -56,8 +143,30 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   const [selectedAvailability, setSelectedAvailability] = useState<string>('all');
   const [selectedNativeLang, setSelectedNativeLang] = useState<string>('all');
   const [selectedTargetLang, setSelectedTargetLang] = useState<string>('all');
+  const [selectedInterest, setSelectedInterest] = useState<string>('all');
+  const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
+  const [favorites, setFavorites] = useState<string[]>(() => dataStore.getFavorites());
   const [onlyCompatible, setOnlyCompatible] = useState<boolean>(true);
+  const [sortBy, setSortBy] = useState<'recent' | 'favorites_first' | 'french_first' | 'norwegian_first' | 'name_asc'>('recent');
   const [showMultiLangBanner, setShowMultiLangBanner] = useState<boolean>(true);
+
+  // Sync favorites when updated in localStorage
+  useEffect(() => {
+    const handleFavUpdate = () => {
+      setFavorites(dataStore.getFavorites());
+    };
+    window.addEventListener('tandem_favorites_updated', handleFavUpdate);
+    window.addEventListener('storage', handleFavUpdate);
+    return () => {
+      window.removeEventListener('tandem_favorites_updated', handleFavUpdate);
+      window.removeEventListener('storage', handleFavUpdate);
+    };
+  }, []);
+
+  const handleToggleFavorite = (profileId: string) => {
+    const next = dataStore.toggleFavorite(profileId);
+    setFavorites(next);
+  };
 
   // Selected Profile for detailed drawer modal
   const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
@@ -168,6 +277,25 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
     return { label: langStr, flag: '🌐' };
   };
 
+  // Stats on native languages (Français ou Norvégien)
+  const nativeLangStats = useMemo(() => {
+    const frenchCount = profiles.filter(
+      (p) => p.langue_maternelle.toLowerCase() === 'français'
+    ).length;
+    const norwegianCount = profiles.filter(
+      (p) => p.langue_maternelle.toLowerCase() === 'norvégien'
+    ).length;
+    return { frenchCount, norwegianCount, total: profiles.length };
+  }, [profiles]);
+
+  // Stats on interest categories
+  const interestStats = useMemo(() => {
+    return INTEREST_CATEGORIES.map((cat) => {
+      const count = profiles.filter((p) => profileMatchesInterest(p, cat)).length;
+      return { ...cat, count };
+    });
+  }, [profiles]);
+
   // Filtered profiles
   const filteredProfiles = useMemo(() => {
     const list = profiles.filter((p) => {
@@ -182,11 +310,26 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           const matchesBio = p.bio.toLowerCase().includes(q);
           if (!matchesName && !matchesQuartier && !matchesBio) return false;
         }
+        if (onlyFavorites && !favorites.includes(p.id)) {
+          return false;
+        }
+        if (selectedInterest !== 'all') {
+          const cat = INTEREST_CATEGORIES.find((c) => c.id === selectedInterest);
+          if (cat && !profileMatchesInterest(p, cat)) return false;
+        }
+        if (selectedNativeLang !== 'all' && p.langue_maternelle.toLowerCase() !== selectedNativeLang.toLowerCase()) {
+          return false;
+        }
         return true;
       }
 
-      // Filter compatibility: opposite native language
-      if (onlyCompatible && currentUser) {
+      // Filter by favorites
+      if (onlyFavorites) {
+        if (!favorites.includes(p.id)) return false;
+      }
+
+      // Filter compatibility: opposite native language (only active when no explicit native language filter is selected)
+      if (onlyCompatible && currentUser && selectedNativeLang === 'all') {
         const isDirectMatch =
           p.langue_maternelle.toLowerCase() === currentUser.langue_apprise.toLowerCase() &&
           p.langue_apprise.toLowerCase() === currentUser.langue_maternelle.toLowerCase();
@@ -199,9 +342,17 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
         if (!isDirectMatch && !isSecondaryMatch) return false;
       }
 
-      // Filter by specific native language
+      // Filter by specific native language (Français ou Norvégien)
       if (selectedNativeLang !== 'all') {
         if (p.langue_maternelle.toLowerCase() !== selectedNativeLang.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Filter by specific interest category
+      if (selectedInterest !== 'all') {
+        const cat = INTEREST_CATEGORIES.find((c) => c.id === selectedInterest);
+        if (cat && !profileMatchesInterest(p, cat)) {
           return false;
         }
       }
@@ -283,20 +434,44 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       return true;
     });
 
-    // Prioritize current user at the top of the visible profiles
-    if (currentUser) {
-      const userIndex = list.findIndex((p) => p.id === currentUser.id);
-      if (userIndex > 0) {
-        const userCard = list[userIndex];
-        const others = list.filter((_, idx) => idx !== userIndex);
-        return [userCard, ...others];
+    // Dynamic sorting based on sortBy
+    const sorted = [...list].sort((a, b) => {
+      // Prioritize current user at the top of the visible profiles
+      if (currentUser) {
+        if (a.id === currentUser.id) return -1;
+        if (b.id === currentUser.id) return 1;
       }
-    }
-    return list;
+
+      if (sortBy === 'favorites_first') {
+        const aFav = favorites.includes(a.id) ? 1 : 0;
+        const bFav = favorites.includes(b.id) ? 1 : 0;
+        if (aFav !== bFav) return bFav - aFav;
+      } else if (sortBy === 'french_first') {
+        const aFr = a.langue_maternelle.toLowerCase() === 'français' ? 1 : 0;
+        const bFr = b.langue_maternelle.toLowerCase() === 'français' ? 1 : 0;
+        if (aFr !== bFr) return bFr - aFr;
+      } else if (sortBy === 'norwegian_first') {
+        const aNo = a.langue_maternelle.toLowerCase() === 'norvégien' ? 1 : 0;
+        const bNo = b.langue_maternelle.toLowerCase() === 'norvégien' ? 1 : 0;
+        if (aNo !== bNo) return bNo - aNo;
+      } else if (sortBy === 'name_asc') {
+        return a.prenom.localeCompare(b.prenom, locale === 'no' ? 'nb' : 'fr');
+      }
+
+      // Default: recent activity timestamp
+      const aTime = a.derniere_activite ? new Date(a.derniere_activite).getTime() : 0;
+      const bTime = b.derniere_activite ? new Date(b.derniere_activite).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return sorted;
   }, [
     profiles,
     currentUser,
     onlyCompatible,
+    onlyFavorites,
+    favorites,
+    selectedInterest,
     searchQuery,
     selectedCity,
     selectedNeighborhood,
@@ -304,6 +479,8 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
     selectedAvailability,
     selectedNativeLang,
     selectedTargetLang,
+    sortBy,
+    locale,
   ]);
 
   // Format activity timestamp into localized text
@@ -501,9 +678,186 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       <Atelier24Promo variant="compact" />
 
       {/* Filter and Search Bar */}
-      <div className="p-4 sm:p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs space-y-3.5">
-        {/* Row 1: Quick City Selector & Proximity */}
-        <div className="flex items-center gap-2 pb-3 border-b border-[#F0ECE1] overflow-x-auto no-scrollbar">
+      <div className="p-4 sm:p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs space-y-4">
+        {/* Row 1: Primary Filters: Langue maternelle (Français ou Norvégien) + Favoris ❤️ + Tri */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[#F0ECE1]">
+          {/* Native Language quick selector */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-[#525E56] font-semibold mr-1 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-[#2E4A3D]" />
+              <span>{t.nativeLanguageFilterLabel} :</span>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setSelectedNativeLang('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                selectedNativeLang === 'all'
+                  ? 'bg-[#2E4A3D] text-white shadow-xs font-semibold'
+                  : 'bg-[#FAF8F5] text-[#525E56] hover:text-[#1F2421] border border-[#E5E1D8]'
+              }`}
+            >
+              <span>{t.filterAllLanguages}</span>
+              <span
+                className={`ml-1.5 text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  selectedNativeLang === 'all' ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#717A74]'
+                }`}
+              >
+                {profiles.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedNativeLang('français');
+                setOnlyCompatible(false);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                selectedNativeLang === 'français'
+                  ? 'bg-[#2E4A3D] text-white shadow-xs font-semibold ring-2 ring-[#2E4A3D]/20'
+                  : 'bg-[#FAF8F5] text-[#525E56] hover:text-[#1F2421] border border-[#E5E1D8]'
+              }`}
+            >
+              <span>{t.filterFrenchNative}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  selectedNativeLang === 'français' ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#717A74]'
+                }`}
+              >
+                {nativeLangStats.frenchCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedNativeLang('norvégien');
+                setOnlyCompatible(false);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                selectedNativeLang === 'norvégien'
+                  ? 'bg-[#2E4A3D] text-white shadow-xs font-semibold ring-2 ring-[#2E4A3D]/20'
+                  : 'bg-[#FAF8F5] text-[#525E56] hover:text-[#1F2421] border border-[#E5E1D8]'
+              }`}
+            >
+              <span>{t.filterNorwegianNative}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  selectedNativeLang === 'norvégien' ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#717A74]'
+                }`}
+              >
+                {nativeLangStats.norwegianCount}
+              </span>
+            </button>
+
+            {/* Quick Favorites button */}
+            <button
+              type="button"
+              onClick={() => setOnlyFavorites(!onlyFavorites)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ml-0.5 sm:ml-2 ${
+                onlyFavorites
+                  ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-300'
+                  : 'bg-[#FFF5F5] text-rose-700 hover:bg-[#FFEAEA] border border-rose-200'
+              }`}
+              title={onlyFavorites ? t.resetFilters : t.filterOnlyFavorites}
+            >
+              <Heart
+                className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-white text-white' : 'fill-rose-500 text-rose-500'}`}
+              />
+              <span>{t.filterFavoritesLabel}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  onlyFavorites ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-800'
+                }`}
+              >
+                {favorites.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Sort By Controls */}
+          <div className="flex items-center gap-2 self-start lg:self-auto">
+            <span className="text-xs text-[#717A74] flex items-center gap-1 font-medium whitespace-nowrap">
+              <ArrowUpDown className="w-3.5 h-3.5 text-[#2E4A3D]" />
+              <span>{t.sortByLabel} :</span>
+            </span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421] font-semibold cursor-pointer"
+            >
+              <option value="recent">⚡ {t.sortRecent}</option>
+              <option value="favorites_first">❤️ {t.sortFavoritesFirst}</option>
+              <option value="french_first">{t.sortFrenchFirst}</option>
+              <option value="norwegian_first">{t.sortNorwegianFirst}</option>
+              <option value="name_asc">🔤 {t.sortNameAsc}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Row 2: Centres d'intérêt (Interests Categories) Chips Carousel */}
+        <div className="space-y-1.5 pb-3 border-b border-[#F0ECE1]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-[#525E56] font-semibold">
+              <Tag className="w-3.5 h-3.5 text-[#2E4A3D]" />
+              <span>{t.filterInterestsLabel} :</span>
+            </div>
+            {selectedInterest !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedInterest('all')}
+                className="text-[11px] text-[#717A74] hover:text-[#1F2421] flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <X className="w-3 h-3" />
+                <span>{locale === 'no' ? 'Vis alle interesser' : 'Tous les intérêts'}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              type="button"
+              onClick={() => setSelectedInterest('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                selectedInterest === 'all'
+                  ? 'bg-[#2E4A3D] text-white shadow-xs font-semibold'
+                  : 'bg-[#FAF8F5] text-[#525E56] hover:text-[#1F2421] border border-[#E5E1D8]'
+              }`}
+            >
+              {t.filterAllInterests}
+            </button>
+
+            {interestStats.map((cat) => {
+              const isSelected = selectedInterest === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedInterest(isSelected ? 'all' : cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-[#2E4A3D] text-white shadow-xs font-semibold ring-2 ring-[#2E4A3D]/25'
+                      : 'bg-[#FAF8F5] text-[#525E56] hover:text-[#1F2421] hover:bg-[#F2EFE9] border border-[#E5E1D8]'
+                  }`}
+                >
+                  <span>{cat.emoji}</span>
+                  <span>{locale === 'no' ? cat.labelNo : cat.labelFr}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#717A74]'
+                    }`}
+                  >
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Row 3: Quick City Selector & Proximity */}
+        <div className="flex items-center gap-2 pb-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1.5 text-xs text-[#525E56] font-medium shrink-0 mr-1">
             <MapPin className="w-3.5 h-3.5 text-[#2E4A3D]" />
             <span>{t.cityFilterLabel} :</span>
@@ -560,7 +914,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           )}
         </div>
 
-        {/* Row 2: Quick Neighborhood sub-chips */}
+        {/* Row 4: Neighborhood sub-chips */}
         {currentNeighborhoodList.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <span className="text-[11px] text-[#717A74] shrink-0 mr-1">
@@ -599,35 +953,10 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           </div>
         )}
 
-        {/* Active Location Filter Badge if selected */}
-        {(selectedCity !== 'all' || selectedNeighborhood !== 'all') && (
-          <div className="flex items-center justify-between gap-2 p-2 px-3 bg-[#FAF8F5] rounded-xl border border-[#E5E1D8] text-xs text-[#2E4A3D]">
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-[#2E4A3D]" />
-              <span className="text-[#717A74]">{t.selectedLocationBadge}</span>
-              <strong className="font-semibold text-[#1F2421]">
-                {selectedNeighborhood !== 'all' ? `${selectedNeighborhood}, ` : ''}
-                {selectedCity !== 'all' ? selectedCity : t.allCities}
-              </strong>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCity('all');
-                setSelectedNeighborhood('all');
-              }}
-              className="text-xs text-[#717A74] hover:text-[#1F2421] flex items-center gap-1 cursor-pointer font-medium"
-            >
-              <X className="w-3 h-3" />
-              <span>{t.resetFilters}</span>
-            </button>
-          </div>
-        )}
-
-        {/* Row 3: Dropdown Form Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 pt-1">
+        {/* Row 5: Detailed Filter Inputs (Search term, level, availability) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 pt-1 border-t border-[#F5F2EB]">
           {/* Search by text / keyword / spot */}
-          <div className="relative sm:col-span-2 lg:col-span-2">
+          <div className="relative sm:col-span-2 lg:col-span-3">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8C938E]" />
             <input
               type="text"
@@ -636,55 +965,6 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               placeholder={t.locationSearchPlaceholder}
               className="w-full pl-9 pr-3 py-2 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D]"
             />
-          </div>
-
-          {/* City filter dropdown */}
-          <div>
-            <select
-              value={selectedCity}
-              onChange={(e) => handleSelectCity(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421] font-medium"
-            >
-              <option value="all">📍 {t.allCities}</option>
-              {cityStats.map(({ city, count }) => (
-                <option key={city} value={city}>
-                  {city} ({count})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Neighborhood filter dropdown */}
-          <div>
-            <select
-              value={selectedNeighborhood}
-              onChange={(e) => setSelectedNeighborhood(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
-            >
-              <option value="all">
-                {selectedCity === 'all'
-                  ? t.allNeighborhoods
-                  : t.allNeighborhoodsInCity.replace('{city}', selectedCity)}
-              </option>
-
-              {selectedCity === 'all' ? (
-                Array.from(neighborhoodsByCity.entries()).map(([city, neighMap]) => (
-                  <optgroup key={city} label={city}>
-                    {Array.from(neighMap.entries()).map(([name, count]) => (
-                      <option key={name} value={name}>
-                        {name} ({count})
-                      </option>
-                    ))}
-                  </optgroup>
-                ))
-              ) : (
-                currentNeighborhoodList.map(({ name, count }) => (
-                  <option key={name} value={name}>
-                    {name} ({count})
-                  </option>
-                ))
-              )}
-            </select>
           </div>
 
           {/* CEFR Level filter */}
@@ -715,71 +995,112 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               <option value="weekend">{t.availWeekend}</option>
             </select>
           </div>
-        </div>
 
-        {/* Row 2: Multi-Language Extensibility Filters (Phase 2 ready) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-[#F5F2EB]">
-          {/* Native Language Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[#717A74] whitespace-nowrap">
-              {t.nativeLang} :
-            </span>
-            <select
-              value={selectedNativeLang}
-              onChange={(e) => {
-                setSelectedNativeLang(e.target.value);
-                if (e.target.value !== 'all') setOnlyCompatible(false);
-              }}
-              className="flex-1 px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
-            >
-              <option value="all">{t.allNativeLanguages}</option>
-              <optgroup label={t.primaryLanguagesGroup}>
-                <option value="français">🇫🇷 Français</option>
-                <option value="norvégien">🇳🇴 Norsk</option>
-              </optgroup>
-              <optgroup label={t.upcomingLanguagesGroup}>
-                {SUPPORTED_LANGUAGES.filter((l) => !l.isPrimary).map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.flag} {locale === 'no' ? l.labelNo : l.labelFr}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-
-          {/* Target Language Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[#717A74] whitespace-nowrap">
-              {t.targetLang} :
-            </span>
+          {/* Target language */}
+          <div>
             <select
               value={selectedTargetLang}
               onChange={(e) => {
                 setSelectedTargetLang(e.target.value);
                 if (e.target.value !== 'all') setOnlyCompatible(false);
               }}
-              className="flex-1 px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
+              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
             >
               <option value="all">{t.allTargetLanguages}</option>
-              <optgroup label={t.primaryLanguagesGroup}>
-                <option value="norvégien">🇳🇴 Norsk</option>
-                <option value="français">🇫🇷 Français</option>
-              </optgroup>
-              <optgroup label={t.upcomingLanguagesGroup}>
-                {SUPPORTED_LANGUAGES.filter((l) => !l.isPrimary).map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.flag} {locale === 'no' ? l.labelNo : l.labelFr}
-                  </option>
-                ))}
-              </optgroup>
+              <option value="norvégien">🇳🇴 Norsk</option>
+              <option value="français">🇫🇷 Français</option>
             </select>
           </div>
         </div>
 
-        {/* Compatibility toggle & results count */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#F0ECE1] text-xs text-[#525E56]">
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
+        {/* Active Filters Badges & Summary Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[#F0ECE1] text-xs text-[#525E56]">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[#717A74] font-medium mr-1">
+              <strong className="text-[#1F2421] font-semibold">{filteredProfiles.length}</strong> {t.profilesFound}
+            </span>
+
+            {/* Active filter badges */}
+            {selectedNativeLang !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E8EDE6] text-[#2E4A3D] text-[11px] font-semibold">
+                <span>{selectedNativeLang === 'français' ? '🇫🇷 Français natif' : '🇳🇴 Norvégien natif'}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNativeLang('all')}
+                  className="hover:text-black cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedInterest !== 'all' && (() => {
+              const cat = INTEREST_CATEGORIES.find((c) => c.id === selectedInterest);
+              if (!cat) return null;
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E8EDE6] text-[#2E4A3D] text-[11px] font-semibold">
+                  <span>{cat.emoji} {locale === 'no' ? cat.labelNo : cat.labelFr}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInterest('all')}
+                    className="hover:text-black cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              );
+            })()}
+
+            {onlyFavorites && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 text-[11px] font-semibold">
+                <span>❤️ {t.filterOnlyFavorites}</span>
+                <button
+                  type="button"
+                  onClick={() => setOnlyFavorites(false)}
+                  className="hover:text-rose-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {(selectedCity !== 'all' || selectedNeighborhood !== 'all') && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FAF8F5] border border-[#E5E1D8] text-[#1F2421] text-[11px] font-medium">
+                <MapPin className="w-3 h-3 text-[#2E4A3D]" />
+                <span>
+                  {selectedNeighborhood !== 'all' ? `${selectedNeighborhood}, ` : ''}
+                  {selectedCity !== 'all' ? selectedCity : t.allCities}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCity('all');
+                    setSelectedNeighborhood('all');
+                  }}
+                  className="hover:text-black cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {searchQuery.trim() && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FAF8F5] border border-[#E5E1D8] text-[#1F2421] text-[11px] font-medium">
+                <Search className="w-3 h-3 text-[#8C938E]" />
+                <span>"{searchQuery}"</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="hover:text-black cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-[#525E56]">
               <input
                 type="checkbox"
                 checked={onlyCompatible}
@@ -794,29 +1115,32 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               />
               <span>{t.filterCompatibleOnly}</span>
             </label>
-          </div>
 
-          <div className="flex items-center gap-2 text-[#717A74]">
-            <span>
-              {filteredProfiles.length} {t.profilesFound}
-            </span>
-            {(selectedNeighborhood !== 'all' ||
+            {(selectedNativeLang !== 'all' ||
+              selectedInterest !== 'all' ||
+              onlyFavorites ||
+              selectedNeighborhood !== 'all' ||
+              selectedCity !== 'all' ||
               selectedLevel !== 'all' ||
               selectedAvailability !== 'all' ||
-              selectedNativeLang !== 'all' ||
               selectedTargetLang !== 'all' ||
               searchQuery) && (
               <button
+                type="button"
                 onClick={() => {
+                  setSelectedNativeLang('all');
+                  setSelectedInterest('all');
+                  setOnlyFavorites(false);
+                  setSelectedCity('all');
                   setSelectedNeighborhood('all');
                   setSelectedLevel('all');
                   setSelectedAvailability('all');
-                  setSelectedNativeLang('all');
                   setSelectedTargetLang('all');
                   setSearchQuery('');
                   setOnlyCompatible(true);
+                  setSortBy('recent');
                 }}
-                className="text-[#2E4A3D] underline ml-2 cursor-pointer"
+                className="text-[#2E4A3D] hover:underline cursor-pointer font-semibold text-xs whitespace-nowrap"
               >
                 {t.resetFilters}
               </button>
@@ -827,10 +1151,33 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 
       {/* Profiles Cards Grid */}
       {filteredProfiles.length === 0 ? (
-        <div className="p-12 bg-white rounded-2xl border border-[#E5E1D8] text-center space-y-3">
-          <p className="font-display text-lg text-[#1F2421]">{t.noProfilesMatch}</p>
-          <p className="text-xs text-[#525E56] max-w-sm mx-auto">{t.noProfilesHint}</p>
-        </div>
+        onlyFavorites ? (
+          <div className="p-12 bg-white rounded-3xl border border-rose-200 shadow-xs text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-500 mx-auto flex items-center justify-center text-3xl shadow-inner">
+              ❤️
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-display text-xl text-[#1F2421] font-semibold">
+                {t.favoritesEmptyTitle}
+              </h3>
+              <p className="text-xs text-[#525E56] max-w-md mx-auto leading-relaxed">
+                {t.favoritesEmptyDesc}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOnlyFavorites(false)}
+              className="px-4 py-2 bg-[#2E4A3D] text-white text-xs font-semibold rounded-xl hover:bg-[#23382E] transition-all cursor-pointer shadow-xs"
+            >
+              {locale === 'no' ? 'Utforsk alle profiler' : 'Explorer tous les profils'}
+            </button>
+          </div>
+        ) : (
+          <div className="p-12 bg-white rounded-2xl border border-[#E5E1D8] text-center space-y-3">
+            <p className="font-display text-lg text-[#1F2421]">{t.noProfilesMatch}</p>
+            <p className="text-xs text-[#525E56] max-w-sm mx-auto">{t.noProfilesHint}</p>
+          </div>
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProfiles.map((profile) => {
@@ -900,9 +1247,36 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[10px] text-[#717A74] bg-[#F5F2EB] px-2 py-0.5 rounded-full shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span>{formatLastActivity(profile.derniere_activite)}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 text-[10px] text-[#717A74] bg-[#F5F2EB] px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>{formatLastActivity(profile.derniere_activite)}</span>
+                      </div>
+
+                      {/* Favorite Button on Card */}
+                      {!isCurrentUser && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleFavorite(profile.id);
+                          }}
+                          className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                            favorites.includes(profile.id)
+                              ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
+                              : 'text-[#8C938E] hover:text-rose-500 hover:bg-[#F5F2EB]'
+                          }`}
+                          title={favorites.includes(profile.id) ? t.removeFromFavorites : t.addToFavorites}
+                        >
+                          <Heart
+                            className={`w-4 h-4 transition-transform ${
+                              favorites.includes(profile.id)
+                                ? 'fill-rose-500 text-rose-500 scale-110'
+                                : 'text-[#8C938E]'
+                            }`}
+                          />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -947,6 +1321,43 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                   <p className="text-xs text-[#525E56] line-clamp-3 leading-relaxed">
                     {profile.bio}
                   </p>
+
+                  {/* Matching Interests Tags */}
+                  {(() => {
+                    const matchedCats = getProfileMatchingInterests(profile);
+                    if (matchedCats.length === 0) return null;
+                    return (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {matchedCats.slice(0, 3).map((cat) => {
+                          const isCatSelected = selectedInterest === cat.id;
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedInterest(isCatSelected ? 'all' : cat.id);
+                              }}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer ${
+                                isCatSelected
+                                  ? 'bg-[#2E4A3D] text-white shadow-2xs font-semibold'
+                                  : 'bg-[#FAF8F5] hover:bg-[#F0ECE1] text-[#525E56] border border-[#E5E1D8]'
+                              }`}
+                              title={locale === 'no' ? `Filtrer på ${cat.labelNo}` : `Filtrer par ${cat.labelFr}`}
+                            >
+                              <span>{cat.emoji}</span>
+                              <span>{locale === 'no' ? cat.labelNo : cat.labelFr}</span>
+                            </button>
+                          );
+                        })}
+                        {matchedCats.length > 3 && (
+                          <span className="text-[10px] text-[#8C938E] font-medium">
+                            +{matchedCats.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {profile.lieux_preferes && profile.lieux_preferes.length > 0 && (
                     <div className="text-[11px] text-[#2E4A3D] bg-[#F7F5F0] p-2.5 rounded-xl border border-[#EBE6DC] flex items-center justify-between">
@@ -1013,12 +1424,30 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       {activeProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FAF8F5] rounded-3xl border border-[#E5E1D8] shadow-2xl p-6 sm:p-8 text-[#1F2421] space-y-6">
-            <button
-              onClick={() => setActiveProfile(null)}
-              className="absolute top-5 right-5 p-1.5 rounded-full text-[#8C938E] hover:text-[#1F2421] hover:bg-[#EFECE6] transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="absolute top-5 right-5 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleToggleFavorite(activeProfile.id)}
+                className={`p-2 rounded-full transition-all cursor-pointer ${
+                  favorites.includes(activeProfile.id)
+                    ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
+                    : 'text-[#8C938E] hover:text-rose-500 hover:bg-[#EFECE6]'
+                }`}
+                title={favorites.includes(activeProfile.id) ? t.removeFromFavorites : t.addToFavorites}
+              >
+                <Heart
+                  className={`w-5 h-5 transition-transform ${
+                    favorites.includes(activeProfile.id) ? 'fill-rose-500 text-rose-500 scale-110' : ''
+                  }`}
+                />
+              </button>
+              <button
+                onClick={() => setActiveProfile(null)}
+                className="p-1.5 rounded-full text-[#8C938E] hover:text-[#1F2421] hover:bg-[#EFECE6] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-[#EAE5DC] text-[#2E4A3D] font-display text-2xl font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
@@ -1106,6 +1535,31 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Matched & Highlighted Interests in Drawer */}
+            {(() => {
+              const matchedCats = getProfileMatchingInterests(activeProfile);
+              if (matchedCats.length === 0) return null;
+              return (
+                <div className="p-3 bg-white rounded-xl border border-[#E5E1D8] text-xs space-y-1.5">
+                  <span className="text-[11px] font-semibold text-[#525E56] flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-[#2E4A3D]" />
+                    <span>{t.filterInterestsLabel} :</span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {matchedCats.map((cat) => (
+                      <span
+                        key={cat.id}
+                        className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] border border-[#E5E1D8] text-xs flex items-center gap-1.5 font-medium text-[#1F2421]"
+                      >
+                        <span>{cat.emoji}</span>
+                        <span>{locale === 'no' ? cat.labelNo : cat.labelFr}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-3 text-xs leading-relaxed text-[#525E56]">
               <div>

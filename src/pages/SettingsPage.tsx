@@ -352,17 +352,19 @@ CREATE TABLE public.messages (
           </div>
         )}
 
-        <div className="pt-2 flex items-center justify-between border-t border-[#F0ECE1]">
-          <span className="text-xs text-[#8C938E]">
-            {locale === 'no' ? 'Hurtigknapp for å veksle betalingsstatus manuelt:' : 'Option de test pour basculer le statut sans carte :'}
-          </span>
-          <button
-            onClick={handleTogglePaymentStatus}
-            className="px-3.5 py-1.5 rounded-lg border border-[#E5E1D8] text-xs font-medium text-[#2E4A3D] hover:bg-[#F5F2EB] transition-colors cursor-pointer"
-          >
-            {t.settingsTestToggleBtn}
-          </button>
-        </div>
+        {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+          <div className="pt-2 flex items-center justify-between border-t border-[#F0ECE1]">
+            <span className="text-xs text-[#8C938E]">
+              {locale === 'no' ? 'Hurtigknapp for administrator (veksle status manuelt):' : 'Option gestionnaire (basculer le statut test) :'}
+            </span>
+            <button
+              onClick={handleTogglePaymentStatus}
+              className="px-3.5 py-1.5 rounded-lg border border-[#E5E1D8] text-xs font-medium text-[#2E4A3D] hover:bg-[#F5F2EB] transition-colors cursor-pointer"
+            >
+              {t.settingsTestToggleBtn}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Profil Gestionnaire & Souscriptions Vipps - visible UNIQUEMENT pour bcdlfo@gmail.com ou profil gestionnaire */}

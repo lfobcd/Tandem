@@ -849,11 +849,43 @@ export const dataStore = {
     else localStorage.removeItem(STORAGE_KEYS.MAPBOX_TOKEN);
   },
 
+  getFavorites(): string[] {
+    try {
+      const raw = localStorage.getItem('tandem_favorites_v1');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  toggleFavorite(profileId: string): string[] {
+    const list = this.getFavorites();
+    const idx = list.indexOf(profileId);
+    let next: string[];
+    if (idx >= 0) {
+      next = list.filter((id) => id !== profileId);
+    } else {
+      next = [...list, profileId];
+    }
+    try {
+      localStorage.setItem('tandem_favorites_v1', JSON.stringify(next));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tandem_favorites_updated', { detail: next }));
+      }
+    } catch {}
+    return next;
+  },
+
+  isFavorite(profileId: string): boolean {
+    return this.getFavorites().includes(profileId);
+  },
+
   resetToDefault() {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     localStorage.removeItem(STORAGE_KEYS.PROFILES);
     localStorage.removeItem(STORAGE_KEYS.CONVERSATIONS);
     localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    localStorage.removeItem('tandem_favorites_v1');
     initStorage();
   },
 };

@@ -137,6 +137,26 @@ export interface Translations {
   viewOnMap: string;
   favoriteSpots: string;
 
+  // Search Filters & Sorting
+  nativeLanguageFilterLabel: string;
+  filterFrenchNative: string;
+  filterNorwegianNative: string;
+  filterAllLanguages: string;
+  filterInterestsLabel: string;
+  filterAllInterests: string;
+  filterFavoritesLabel: string;
+  filterOnlyFavorites: string;
+  sortByLabel: string;
+  sortRecent: string;
+  sortFavoritesFirst: string;
+  sortFrenchFirst: string;
+  sortNorwegianFirst: string;
+  sortNameAsc: string;
+  favoritesEmptyTitle: string;
+  favoritesEmptyDesc: string;
+  addToFavorites: string;
+  removeFromFavorites: string;
+
   // Profile Drawer
   profileAbout: string;
   profileDesires: string;
@@ -422,6 +442,25 @@ export const translations: Record<Locale, Translations> = {
     clickToSeeMap: 'Cliquer pour voir la carte',
     viewOnMap: 'Voir les lieux',
     favoriteSpots: 'Lieux préférés',
+
+    nativeLanguageFilterLabel: 'Langue maternelle',
+    filterFrenchNative: '🇫🇷 Français natif',
+    filterNorwegianNative: '🇳🇴 Norvégien natif (Norsk)',
+    filterAllLanguages: 'Toutes les langues',
+    filterInterestsLabel: "Centres d'intérêt",
+    filterAllInterests: 'Tous les centres d’intérêt',
+    filterFavoritesLabel: 'Mes favoris',
+    filterOnlyFavorites: 'Favoris uniquement',
+    sortByLabel: 'Trier par',
+    sortRecent: 'Activité récente',
+    sortFavoritesFirst: 'Favoris en premier ❤️',
+    sortFrenchFirst: 'Français natif d’abord 🇫🇷',
+    sortNorwegianFirst: 'Norvégien natif d’abord 🇳🇴',
+    sortNameAsc: 'Nom (A à Z)',
+    favoritesEmptyTitle: 'Aucun profil en favori',
+    favoritesEmptyDesc: 'Cliquez sur l’icône cœur ❤️ sur les profils pour les enregistrer et les retrouver facilement.',
+    addToFavorites: 'Ajouter aux favoris',
+    removeFromFavorites: 'Retirer des favoris',
 
     profileAbout: 'À propos de',
     profileDesires: "Envies d'échange",
@@ -715,6 +754,25 @@ export const translations: Record<Locale, Translations> = {
     clickToSeeMap: 'Klikk for å se kartet',
     viewOnMap: 'Vis steder',
     favoriteSpots: 'Favorittsteder',
+
+    nativeLanguageFilterLabel: 'Morsmål',
+    filterFrenchNative: '🇫🇷 Fransk morsmål',
+    filterNorwegianNative: '🇳🇴 Norsk morsmål',
+    filterAllLanguages: 'Alle språk',
+    filterInterestsLabel: 'Interesser og aktiviteter',
+    filterAllInterests: 'Alle interesser',
+    filterFavoritesLabel: 'Mine favoritter',
+    filterOnlyFavorites: 'Kun favoritter',
+    sortByLabel: 'Sorter etter',
+    sortRecent: 'Nylig aktiv',
+    sortFavoritesFirst: 'Favoritter først ❤️',
+    sortFrenchFirst: 'Fransk morsmål først 🇫🇷',
+    sortNorwegianFirst: 'Norsk morsmål først 🇳🇴',
+    sortNameAsc: 'Navn (A til Å)',
+    favoritesEmptyTitle: 'Ingen profiler i favoritter',
+    favoritesEmptyDesc: 'Klikk på hjerteikonet ❤️ på profilene for å lagre dem og finne dem raskt igjen.',
+    addToFavorites: 'Legg til i favoritter',
+    removeFromFavorites: 'Fjern fra favoritter',
 
     profileAbout: 'Om',
     profileDesires: 'Hva jeg ønsker å øve på',
