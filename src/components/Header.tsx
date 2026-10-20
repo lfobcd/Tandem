@@ -4,15 +4,9 @@ import { useTranslation, Locale } from '../lib/i18n';
 import {
   MessageSquare,
   Search,
-  Settings,
-  Coffee,
-  Globe,
   Sparkles,
   CheckCircle2,
-  HelpCircle,
   LogOut,
-  User,
-  ShieldCheck,
 } from 'lucide-react';
 import { TandemLogo } from './TandemLogo';
 
@@ -91,10 +85,11 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Zone 2: Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 text-xs font-medium text-[#525E56]">
+        {/* Zone 2: Desktop Navigation Links (Aéré & Épuré) */}
+        <nav className="hidden md:flex items-center gap-1.5 text-xs font-medium text-[#525E56]">
           <button
             onClick={() => onNavigate('discovery')}
-            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${
               currentPage === 'discovery'
                 ? 'bg-[#EAE5DC] text-[#1F2421] font-semibold'
                 : 'hover:text-[#1F2421] hover:bg-[#F2EFE9]'
@@ -104,27 +99,10 @@ export const Header: React.FC<HeaderProps> = ({
             <span>{t.navDiscovery}</span>
           </button>
 
-          <button
-            onClick={() => {
-              if (currentPage !== 'landing') {
-                onNavigate('landing');
-                setTimeout(() => {
-                  document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
-                }, 100);
-              } else {
-                document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            className="px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer hover:text-[#1F2421] hover:bg-[#F2EFE9]"
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>{t.navFaq}</span>
-          </button>
-
           {currentUser && (
             <button
               onClick={() => onNavigate('messages')}
-              className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer relative ${
+              className={`px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer relative ${
                 currentPage === 'messages'
                   ? 'bg-[#EAE5DC] text-[#1F2421] font-semibold'
                   : 'hover:text-[#1F2421] hover:bg-[#F2EFE9]'
@@ -135,34 +113,6 @@ export const Header: React.FC<HeaderProps> = ({
               {unreadCount > 0 && (
                 <span className="w-2 h-2 rounded-full bg-[#2E4A3D]"></span>
               )}
-            </button>
-          )}
-
-          <button
-            onClick={() => onNavigate('settings')}
-            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
-              currentPage === 'settings'
-                ? 'bg-[#EAE5DC] text-[#1F2421] font-semibold'
-                : 'hover:text-[#1F2421] hover:bg-[#F2EFE9]'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>{t.navSettings}</span>
-          </button>
-
-          {/* Admin / Gestionnaire Vipps Button - strictly hidden from normal users */}
-          {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
-            <button
-              onClick={() => onNavigate('admin')}
-              className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs ${
-                currentPage === 'admin'
-                  ? 'bg-[#2E4A3D] text-white font-semibold shadow-xs'
-                  : 'text-[#2E4A3D] bg-[#E8EDE6] hover:bg-[#D8E2D6] font-semibold'
-              }`}
-              title={locale === 'no' ? 'Vipps-administrasjon & betalte profiler' : 'Gestionnaire des souscriptions Vipps'}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-[#FF5B24]" />
-              <span>{locale === 'no' ? 'Vipps Admin' : 'Gestion Vipps'}</span>
             </button>
           )}
         </nav>

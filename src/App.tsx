@@ -227,35 +227,62 @@ function MainApp() {
               >
                 {t.navDiscovery}
               </button>
+
+              {/* FAQ & Guide moved to bottom header */}
+              <button
+                onClick={() => {
+                  if (currentPage !== 'landing') {
+                    navigateTo('landing');
+                    setTimeout(() => {
+                      document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 150);
+                  } else {
+                    document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="hover:text-[#1F2421] transition-colors cursor-pointer"
+              >
+                {t.navFaq}
+              </button>
+
+              {/* Paramètres in bottom header */}
               <button
                 onClick={() => navigateTo('settings')}
                 className="hover:text-[#1F2421] transition-colors cursor-pointer"
               >
                 {t.navSettings}
               </button>
-              {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
-                <button
-                  onClick={() => navigateTo('admin')}
-                  className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-medium flex items-center gap-1"
-                  title="Espace gestionnaire des souscriptions Vipps"
-                >
-                  <span>🛡️</span>
-                  <span>{locale === 'no' ? 'Vipps-administrasjon' : 'Espace Gestionnaire Vipps'}</span>
-                </button>
-              )}
+
               <button
                 onClick={() => setIsTermsOpen(true)}
                 className="hover:text-[#1F2421] transition-colors cursor-pointer underline text-[#2E4A3D]"
               >
                 {t.footerTerms}
               </button>
-              <button
-                onClick={() => setIsLaunchKitOpen(true)}
-                className="hover:text-[#1F2421] transition-colors cursor-pointer font-medium text-[#FF5B24] flex items-center gap-1"
-              >
-                <span>🚀</span>
-                <span>{locale === 'no' ? 'Lanseringskit & Plakat' : 'Kit de lancement & Affiche'}</span>
-              </button>
+
+              {/* Réservé STRICTEMENT au profil gestionnaire bcdlfo@gmail.com */}
+              {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+                <>
+                  <button
+                    onClick={() => navigateTo('admin')}
+                    className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-semibold flex items-center gap-1 bg-[#E8EDE6] px-2.5 py-1 rounded-lg border border-[#D5DDD7]"
+                    title="Espace gestionnaire des souscriptions Vipps"
+                  >
+                    <span>🛡️</span>
+                    <span>{locale === 'no' ? 'Vipps-administrasjon' : 'Espace Gestionnaire Vipps'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsLaunchKitOpen(true)}
+                    className="hover:text-[#1F2421] transition-colors cursor-pointer font-semibold text-[#FF5B24] flex items-center gap-1 bg-[#FFF4F0] px-2.5 py-1 rounded-lg border border-[#FFD0C0]"
+                    title="Kit de communication, affiches & flyers pour cafés d'Oslo"
+                  >
+                    <span>🚀</span>
+                    <span>{locale === 'no' ? 'Lanseringskit & Plakat' : 'Kit de lancement & Affiches'}</span>
+                  </button>
+                </>
+              )}
+
               <span>·</span>
               <span>{locale === 'no' ? '39 kr prisen på en kaffe · Uten abonnement' : "39 NOK prix d'un café · Sans abonnement"}</span>
             </div>
