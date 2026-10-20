@@ -14,6 +14,7 @@ import { AdminSubscriptionsPage } from './pages/AdminSubscriptionsPage';
 import { TermsModal } from './components/TermsModal';
 import { LaunchKitModal } from './components/LaunchKitModal';
 import { PaymentModal } from './components/PaymentModal';
+import { TandemLogo } from './components/TandemLogo';
 
 function MainApp() {
   const { t, locale } = useTranslation();
@@ -142,12 +143,42 @@ function MainApp() {
           />
         )}
 
-        {currentPage === 'messages' && currentUser && (
-          <MessagesPage
-            currentUser={currentUser}
-            initialConversationId={activeConversationId}
-            onNavigate={navigateTo}
-          />
+        {currentPage === 'messages' && (
+          currentUser ? (
+            <MessagesPage
+              currentUser={currentUser}
+              initialConversationId={activeConversationId}
+              onNavigate={navigateTo}
+            />
+          ) : (
+            <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#EAE5DC] text-[#2E4A3D] mx-auto flex items-center justify-center font-display text-xl font-bold shadow-xs">
+                💬
+              </div>
+              <h2 className="font-display text-2xl font-normal text-[#1F2421]">
+                {locale === 'no' ? 'Logg inn for å se meldinger' : 'Connectez-vous pour vos messages'}
+              </h2>
+              <p className="text-xs sm:text-sm text-[#717A74] max-w-sm mx-auto">
+                {locale === 'no'
+                  ? 'Du må være innlogget for å starte eller fortsette en samtale med dine tandems.'
+                  : 'Vous devez être connecté pour initier ou poursuivre des échanges avec vos partenaires de tandem.'}
+              </p>
+              <div className="pt-2 flex justify-center gap-3">
+                <button
+                  onClick={() => handleNavigateAuth('login')}
+                  className="px-5 py-2.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  {locale === 'no' ? 'Logg inn' : 'Se connecter'}
+                </button>
+                <button
+                  onClick={() => handleNavigateAuth('signup')}
+                  className="px-5 py-2.5 bg-white border border-[#E5E1D8] text-[#1F2421] hover:bg-[#F2EFE9] text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  {locale === 'no' ? 'Opprett gratis konto' : 'Créer un compte'}
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {currentPage === 'settings' && (
@@ -179,7 +210,8 @@ function MainApp() {
       {currentPage !== 'messages' && (
         <footer className="border-t border-[#E5E1D8] bg-[#F7F5F0] py-8 text-xs text-[#717A74]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <TandemLogo className="w-6 h-6" />
               <span className="font-display font-medium text-[#1F2421]">{t.brandName}</span>
               <span aria-hidden="true">·</span>
               <span>{locale === 'no' ? 'Fransk-norsk språkutveksling i Oslo' : 'Tandem Franco-Norvégien à Oslo'}</span>

@@ -71,6 +71,14 @@ export interface Translations {
   step3Desc: string;
   activeCommunityTitleBadge: string;
   activeCommunityTitle: string;
+  landingNewMembersBadge: string;
+  landingNewMembersTitle: string;
+  landingNewMembersSubtitle: string;
+  filterAllMembers: string;
+  filterFrenchNativeShort: string;
+  filterNorwegianNativeShort: string;
+  newMemberBadge: string;
+  contactMemberBtn: string;
   viewAllProfiles: string;
   ctaTitle: string;
   ctaSubtitle: string;
@@ -373,6 +381,15 @@ export const translations: Record<Locale, Translations> = {
       "Une contribution unique symbolique de 39 NOK (~3,50 €) au moment de contacter. Débloque l'accès illimité sans abonnement.",
     activeCommunityTitleBadge: 'Communauté active à Oslo',
     activeCommunityTitle: 'Derniers partenaires disponibles',
+    landingNewMembersBadge: '✨ Nouveaux membres inscrits · Oslo',
+    landingNewMembersTitle: 'Nouveaux membres de la communauté',
+    landingNewMembersSubtitle:
+      'Des francophones et des norvégiens motivés qui viennent de rejoindre Tandem pour échanger autour d\'un café.',
+    filterAllMembers: 'Tous les nouveaux',
+    filterFrenchNativeShort: '🇫🇷 Français natif',
+    filterNorwegianNativeShort: '🇳🇴 Norsk morsmål',
+    newMemberBadge: 'Nouveau membre',
+    contactMemberBtn: 'Discuter',
     viewAllProfiles: 'Explorer tous les profils',
     ctaTitle: 'Prêt(e) pour votre première conversation ?',
     ctaSubtitle:
@@ -685,6 +702,15 @@ export const translations: Record<Locale, Translations> = {
       'Et symbolsk engangsbeløp på 39 kr når du vil sende din første melding. Gir livslang ubegrenset tilgang.',
     activeCommunityTitleBadge: 'Aktivt miljø i Oslo',
     activeCommunityTitle: 'Nylig aktive partnere',
+    landingNewMembersBadge: '✨ Nylig innmeldte medlemmer · Oslo',
+    landingNewMembersTitle: 'Nye medlemmer i fellesskapet',
+    landingNewMembersSubtitle:
+      'Fransktalende og norsktalende som nylig ble med for å øve sammen over en god kaffe.',
+    filterAllMembers: 'Alle nye',
+    filterFrenchNativeShort: '🇫🇷 Fransk morsmål',
+    filterNorwegianNativeShort: '🇳🇴 Norsk morsmål',
+    newMemberBadge: 'Nytt medlem',
+    contactMemberBtn: 'Ta kontakt',
     viewAllProfiles: 'Utforsk alle profiler',
     ctaTitle: 'Klar for din første samtale?',
     ctaSubtitle:

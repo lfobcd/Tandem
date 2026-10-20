@@ -298,9 +298,16 @@ const initStorage = () => {
   } else {
     try {
       const parsed = JSON.parse(storedProfilesRaw);
-      // If old profiles cache had more than 2 profiles or missing is_factice marker, overwrite with the 2 dummy profiles
-      if (!Array.isArray(parsed) || parsed.length > 2 || !parsed.some((p) => p.is_factice)) {
+      if (!Array.isArray(parsed) || parsed.length === 0) {
         localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
+      } else {
+        // Ensure standard initial profiles are present alongside new registered members
+        const currentIds = new Set(parsed.map((p: UserProfile) => p.id));
+        const missingInitial = INITIAL_PROFILES.filter((ip) => !currentIds.has(ip.id));
+        if (missingInitial.length > 0) {
+          const merged = [...parsed, ...missingInitial];
+          localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(merged));
+        }
       }
     } catch {
       localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(INITIAL_PROFILES));
@@ -746,13 +753,63 @@ export const dataStore = {
 
   getConversations(): Conversation[] {
     const raw = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
-    const convs: Conversation[] = raw ? JSON.parse(raw) : INITIAL_CONVERSATIONS;
+    let rawList: Conversation[] = raw ? JSON.parse(raw) : INITIAL_CONVERSATIONS;
     const current = this.getCurrentUser();
+    const currentId = current?.id || 'current_user';
     const profiles = this.getProfiles();
 
-    // Populate other_user for each conversation
-    return convs.map((c) => {
-      const otherId = c.participant_ids.find((id) => id !== (current?.id || 'current_user')) || c.participant_ids[1];
+    // Map 'current_user' in participant_ids to currentId if currentId is defined and not user_astrid
+    let convs: Conversation[] = rawList.map((c) => {
+      let p1 = c.participant_ids[0];
+      let p2 = c.participant_ids[1];
+      if (currentId !== 'current_user') {
+        if (p1 === 'current_user' && p2 !== currentId) p1 = currentId;
+        if (p2 === 'current_user' && p1 !== currentId) p2 = currentId;
+      }
+      return { ...c, participant_ids: [p1, p2] as [string, string] };
+    });
+
+    // Filter conversations where current user is a participant
+    let userConvs = convs.filter(
+      (c) => c.participant_ids.includes(currentId) || c.participant_ids.includes('current_user')
+    );
+
+    // If user has no conversations yet and is not Astrid, seed an initial friendly welcome conversation with Astrid
+    if (userConvs.length === 0 && currentId !== 'user_astrid') {
+      const welcomeConvId = `conv_${currentId}_user_astrid`;
+      const welcomeConv: Conversation = {
+        id: welcomeConvId,
+        participant_ids: [currentId, 'user_astrid'],
+        updated_at: new Date().toISOString(),
+        last_message: {
+          id: `msg_welcome_${currentId}`,
+          conversation_id: welcomeConvId,
+          sender_id: 'user_astrid',
+          content: 'Hei ! Velkommen til Tandem Oslo ! Jeg øver på fransk og tar gjerne en kaffe på Fuglen for en uformell prat. Vi snakkes !',
+          created_at: new Date().toISOString(),
+        },
+      };
+
+      convs.unshift(welcomeConv);
+      localStorage.setItem(
+        STORAGE_KEYS.CONVERSATIONS,
+        JSON.stringify(convs.map(({ other_user, ...rest }: any) => rest))
+      );
+
+      // Seed message in MESSAGES store as well
+      const rawMsgs = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+      const msgMap = rawMsgs ? JSON.parse(rawMsgs) : { ...INITIAL_MESSAGES };
+      if (!msgMap[welcomeConvId]) {
+        msgMap[welcomeConvId] = [welcomeConv.last_message];
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(msgMap));
+      }
+
+      userConvs.push(welcomeConv);
+    }
+
+    // Populate other_user dynamically based on current user view
+    return userConvs.map((c) => {
+      const otherId = c.participant_ids.find((id) => id !== currentId) || c.participant_ids[0];
       const otherUser = profiles.find((p) => p.id === otherId) || {
         id: otherId,
         prenom: 'Partenaire Tandem',
@@ -767,6 +824,7 @@ export const dataStore = {
         envies: '',
         bio: '',
       } as UserProfile;
+
       return {
         ...c,
         other_user: otherUser,
@@ -777,7 +835,17 @@ export const dataStore = {
   getMessages(conversationId: string): Message[] {
     const raw = localStorage.getItem(STORAGE_KEYS.MESSAGES);
     const map = raw ? JSON.parse(raw) : INITIAL_MESSAGES;
-    return map[conversationId] || [];
+    const current = this.getCurrentUser();
+    const currentId = current?.id || 'current_user';
+
+    const list: Message[] = map[conversationId] || [];
+    // Map legacy 'current_user' sender to currentId if appropriate
+    return list.map((m) => {
+      if (currentId !== 'current_user' && m.sender_id === 'current_user') {
+        return { ...m, sender_id: currentId };
+      }
+      return m;
+    });
   },
 
   sendMessage(conversationId: string, content: string, senderId: string): Message {
@@ -786,7 +854,7 @@ export const dataStore = {
     const list = map[conversationId] || [];
 
     const newMsg: Message = {
-      id: 'msg_' + Date.now(),
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       conversation_id: conversationId,
       sender_id: senderId,
       content,
@@ -798,12 +866,24 @@ export const dataStore = {
     localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(map));
 
     // Update conversation last message & timestamp
-    const convs = this.getConversations();
+    const rawConvs = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+    let convs: Conversation[] = rawConvs ? JSON.parse(rawConvs) : INITIAL_CONVERSATIONS;
     const cIdx = convs.findIndex((c) => c.id === conversationId);
     if (cIdx >= 0) {
       convs[cIdx].last_message = newMsg;
       convs[cIdx].updated_at = newMsg.created_at;
-      localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(convs));
+      localStorage.setItem(
+        STORAGE_KEYS.CONVERSATIONS,
+        JSON.stringify(convs.map(({ other_user, ...rest }: any) => rest))
+      );
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('tandem_messages_updated', {
+          detail: { conversationId, message: newMsg },
+        })
+      );
     }
 
     return newMsg;
@@ -812,13 +892,14 @@ export const dataStore = {
   startConversation(partnerId: string): string {
     const current = this.getCurrentUser();
     const currentId = current?.id || 'current_user';
-    const convs = this.getConversations();
+    const rawConvs = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+    let convs: Conversation[] = rawConvs ? JSON.parse(rawConvs) : INITIAL_CONVERSATIONS;
 
     // Check if exists
     const existing = convs.find(
       (c) =>
-        (c.participant_ids[0] === currentId && c.participant_ids[1] === partnerId) ||
-        (c.participant_ids[1] === currentId && c.participant_ids[0] === partnerId)
+        (c.participant_ids.includes(currentId) || c.participant_ids.includes('current_user')) &&
+        c.participant_ids.includes(partnerId)
     );
 
     if (existing) {
@@ -834,7 +915,15 @@ export const dataStore = {
     };
 
     convs.unshift(newConv);
-    localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(convs));
+    localStorage.setItem(
+      STORAGE_KEYS.CONVERSATIONS,
+      JSON.stringify(convs.map(({ other_user, ...rest }: any) => rest))
+    );
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tandem_messages_updated'));
+    }
+
     return newId;
   },
 

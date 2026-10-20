@@ -14,6 +14,7 @@ import {
   User,
   ShieldCheck,
 } from 'lucide-react';
+import { TandemLogo } from './TandemLogo';
 
 interface HeaderProps {
   currentPage: PageView;
@@ -49,9 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onNavigate('landing')}
             className="flex items-center gap-2.5 text-left group cursor-pointer"
           >
-            <div className="w-9 h-9 rounded-xl bg-[#2E4A3D] text-[#FAF8F5] flex items-center justify-center font-display text-lg font-normal shadow-xs">
-              T
-            </div>
+            <TandemLogo className="w-10 h-10" />
             <div>
               <span className="font-display text-lg font-normal tracking-tight text-[#1F2421] block leading-none group-hover:text-[#2E4A3D] transition-colors">
                 {t.brandName}

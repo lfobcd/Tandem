@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { PageView, UserProfile } from '../types';
 import { useTranslation } from '../lib/i18n';
 import heroCafeImage from '../assets/images/hero_scandi_cafe_1790239285793.jpg';
@@ -31,6 +31,58 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onNavigateAuth,
 }) => {
   const { t, locale } = useTranslation();
+  const [memberFilter, setMemberFilter] = useState<'all' | 'fr' | 'no'>('all');
+
+  // Compute newest members sorted by recent activity or new registration
+  const displayedNewMembers = useMemo(() => {
+    const list = [...profiles].sort((a, b) => {
+      if (currentUser && a.id === currentUser.id) return -1;
+      if (currentUser && b.id === currentUser.id) return 1;
+
+      // Real users who registered prioritize over seeded
+      if (!a.is_factice && b.is_factice) return -1;
+      if (a.is_factice && !b.is_factice) return 1;
+
+      const dateA = new Date(a.derniere_activite || 0).getTime();
+      const dateB = new Date(b.derniere_activite || 0).getTime();
+      return dateB - dateA;
+    });
+
+    if (memberFilter === 'fr') {
+      return list.filter((p) => p.langue_maternelle.toLowerCase() === 'français').slice(0, 6);
+    }
+    if (memberFilter === 'no') {
+      return list.filter((p) => p.langue_maternelle.toLowerCase() === 'norvégien').slice(0, 6);
+    }
+    return list.slice(0, 6);
+  }, [profiles, currentUser, memberFilter]);
+
+  const frenchCount = useMemo(
+    () => profiles.filter((p) => p.langue_maternelle.toLowerCase() === 'français').length,
+    [profiles]
+  );
+  const norwegianCount = useMemo(
+    () => profiles.filter((p) => p.langue_maternelle.toLowerCase() === 'norvégien').length,
+    [profiles]
+  );
+
+  const formatTimeSince = (dateStr?: string) => {
+    if (!dateStr) return locale === 'no' ? 'Nylig aktiv' : 'Récemment';
+    try {
+      const diffMin = Math.round((Date.now() - new Date(dateStr).getTime()) / 60000);
+      if (diffMin < 60) {
+        return locale === 'no' ? `${Math.max(1, diffMin)} min siden` : `il y a ${Math.max(1, diffMin)} min`;
+      }
+      const diffHours = Math.round(diffMin / 60);
+      if (diffHours < 24) {
+        return locale === 'no' ? `${diffHours} t siden` : `il y a ${diffHours} h`;
+      }
+      const diffDays = Math.round(diffHours / 24);
+      return locale === 'no' ? `${diffDays} d siden` : `il y a ${diffDays} j`;
+    } catch {
+      return locale === 'no' ? 'Nylig aktiv' : 'Récemment';
+    }
+  };
 
   return (
     <div className="space-y-16 sm:space-y-24 py-8 sm:py-12">
@@ -201,97 +253,258 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* Featured Profiles Preview */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      {/* Dynamic Community: Nouveaux Membres & Profils Récents */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <span className="text-xs uppercase tracking-widest text-[#2E4A3D] font-semibold block mb-1">
-              {t.activeCommunityTitleBadge}
-            </span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAE5DC] text-[#2E4A3D] text-xs font-medium tracking-wide mb-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>{t.landingNewMembersBadge}</span>
+            </div>
             <h2 className="font-display text-2xl sm:text-3xl font-normal text-[#1F2421]">
-              {t.activeCommunityTitle}
+              {t.landingNewMembersTitle}
             </h2>
-            <p className="text-xs text-[#717A74] mt-1">
-              {locale === 'no' ? '2 fiktive demoprofiler for å teste plattformen' : '2 profils factices de démonstration pour tester la plateforme'}
+            <p className="text-xs sm:text-sm text-[#525E56] mt-1 max-w-2xl">
+              {t.landingNewMembersSubtitle}
             </p>
           </div>
+
           <button
             onClick={() => onNavigate('discovery')}
-            className="text-xs font-medium text-[#2E4A3D] hover:underline flex items-center gap-1 cursor-pointer"
+            className="self-start md:self-auto text-xs font-semibold text-[#2E4A3D] hover:underline flex items-center gap-1.5 cursor-pointer bg-white px-3.5 py-2 rounded-xl border border-[#E5E1D8] shadow-2xs hover:bg-[#FAF8F5] transition-colors"
           >
             <span>{t.viewAllProfiles}</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-[#EAE5DC] text-[#2E4A3D] text-[10px]">
+              {profiles.length}
+            </span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-6">
-          {profiles.slice(0, 2).map((profile) => (
-            <div
-              key={profile.id}
-              onClick={() => onNavigate('discovery')}
-              className="p-5 bg-white rounded-2xl border border-[#E5E1D8] shadow-xs hover:border-[#2E4A3D] transition-all cursor-pointer space-y-4"
+        {/* Quick Language Filter Pills on Landing Page */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setMemberFilter('all')}
+            className={`px-3 py-1.5 rounded-xl font-medium transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              memberFilter === 'all'
+                ? 'bg-[#2E4A3D] text-white shadow-2xs'
+                : 'bg-white border border-[#E5E1D8] text-[#525E56] hover:bg-[#F2EFE9]'
+            }`}
+          >
+            <span>{t.filterAllMembers}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                memberFilter === 'all' ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#2E4A3D]'
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#EAE5DC] text-[#2E4A3D] font-display text-lg font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
-                  {profile.photo_url ? (
-                    <img
-                      src={profile.photo_url}
-                      alt={profile.prenom}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    profile.prenom.charAt(0)
+              {profiles.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMemberFilter('fr')}
+            className={`px-3 py-1.5 rounded-xl font-medium transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              memberFilter === 'fr'
+                ? 'bg-[#1E40AF] text-white shadow-2xs'
+                : 'bg-white border border-[#E5E1D8] text-[#525E56] hover:bg-[#F2EFE9]'
+            }`}
+          >
+            <span>🇫🇷 {locale === 'no' ? 'Fransk morsmål' : 'Français natifs'}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                memberFilter === 'fr' ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#2E4A3D]'
+              }`}
+            >
+              {frenchCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMemberFilter('no')}
+            className={`px-3 py-1.5 rounded-xl font-medium transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              memberFilter === 'no'
+                ? 'bg-[#DC2626] text-white shadow-2xs'
+                : 'bg-white border border-[#E5E1D8] text-[#525E56] hover:bg-[#F2EFE9]'
+            }`}
+          >
+            <span>🇳🇴 {locale === 'no' ? 'Norsk morsmål' : 'Norvégiens natifs'}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                memberFilter === 'no' ? 'bg-white/20 text-white' : 'bg-[#EAE5DC] text-[#2E4A3D]'
+              }`}
+            >
+              {norwegianCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Members Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {displayedNewMembers.map((profile) => {
+            const isCurrentUser = currentUser?.id === profile.id;
+            const isFrench = profile.langue_maternelle.toLowerCase() === 'français';
+
+            return (
+              <div
+                key={profile.id}
+                onClick={() => onNavigate('discovery')}
+                className={`group p-5 bg-white rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-4 hover:shadow-md ${
+                  isCurrentUser
+                    ? 'border-[#2E4A3D] ring-2 ring-[#2E4A3D]/20 shadow-xs'
+                    : 'border-[#E5E1D8] hover:border-[#2E4A3D]/50 shadow-2xs'
+                }`}
+              >
+                <div className="space-y-3.5">
+                  {/* Top user header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative">
+                        <div className="w-13 h-13 rounded-2xl bg-[#EAE5DC] text-[#2E4A3D] font-display text-xl font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
+                          {profile.photo_url ? (
+                            <img
+                              src={profile.photo_url}
+                              alt={profile.prenom}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            profile.prenom.charAt(0)
+                          )}
+                        </div>
+                        {/* Native Language Mini Flag Badge on avatar */}
+                        <span
+                          className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 shadow-2xs border border-[#E5E1D8]"
+                          title={isFrench ? 'Français natif' : 'Norsk morsmål'}
+                        >
+                          {isFrench ? '🇫🇷' : '🇳🇴'}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-display text-base font-normal text-[#1F2421] group-hover:text-[#2E4A3D] transition-colors truncate">
+                            {profile.prenom}
+                          </h3>
+                          {isCurrentUser && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#2E4A3D] text-white shrink-0 flex items-center gap-0.5 shadow-2xs">
+                              <Sparkles className="w-2.5 h-2.5 text-amber-300" />
+                              <span>{locale === 'no' ? 'Deg' : 'Vous'}</span>
+                            </span>
+                          )}
+                          {!profile.is_factice && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span>{t.newMemberBadge}</span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#717A74] flex items-center gap-1 truncate mt-0.5">
+                          <MapPin className="w-3 h-3 text-[#2E4A3D] shrink-0" />
+                          <span className="truncate">{profile.quartier}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] text-[#8C938E] shrink-0 whitespace-nowrap bg-[#FAF8F5] px-2 py-0.5 rounded-md border border-[#F0ECE1]">
+                      {formatTimeSince(profile.derniere_activite)}
+                    </span>
+                  </div>
+
+                  {/* Language Exchange Badges */}
+                  <div className="border-y border-[#F0ECE1] py-2.5 flex items-center justify-between text-xs gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="text-[10px] uppercase tracking-wider text-[#8C938E] block font-medium">
+                        {t.nativeLang}
+                      </span>
+                      <span className="font-semibold text-[#1F2421] truncate block text-xs">
+                        {isFrench ? '🇫🇷 Français' : '🇳🇴 Norsk'}
+                      </span>
+                    </div>
+
+                    <div className="h-6 w-[1px] bg-[#E5E1D8]"></div>
+
+                    <div className="space-y-0.5 text-right min-w-0">
+                      <span className="text-[10px] uppercase tracking-wider text-[#8C938E] block font-medium">
+                        {t.targetLang}
+                      </span>
+                      <span className="font-semibold text-[#2E4A3D] truncate block text-xs">
+                        {isFrench ? '🇳🇴 Norsk' : '🇫🇷 Français'}{' '}
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#EAE5DC] text-[#2E4A3D]">
+                          {profile.niveau}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bio teaser */}
+                  <p className="text-xs text-[#525E56] line-clamp-2 leading-relaxed">
+                    {profile.bio || profile.envies}
+                  </p>
+
+                  {/* Favorite cafe spot if exists */}
+                  {profile.lieux_preferes && profile.lieux_preferes[0] && (
+                    <div className="text-[11px] text-[#2E4A3D] bg-[#FAF8F5] p-2 rounded-xl flex items-center gap-1.5 border border-[#E5E1D8]/80">
+                      <Coffee className="w-3.5 h-3.5 shrink-0 text-[#2E4A3D]" />
+                      <span className="truncate font-medium">
+                        {profile.lieux_preferes[0].label}
+                      </span>
+                    </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="font-display text-base font-normal text-[#1F2421]">
-                      {profile.prenom}
-                    </h3>
-                    {profile.is_factice && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
-                        {locale === 'no' ? 'Fiktiv profil' : 'Profil factice'}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-[#717A74] flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-[#2E4A3D]" />
-                    {profile.quartier}
-                  </p>
+
+                {/* Card CTA row */}
+                <div className="pt-2 flex items-center justify-between border-t border-[#F0ECE1] gap-2">
+                  <span className="text-[11px] text-[#717A74] group-hover:text-[#2E4A3D] font-medium flex items-center gap-1">
+                    <span>{locale === 'no' ? 'Se profil' : 'Voir le profil'}</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('discovery');
+                    }}
+                    className="px-3 py-1 bg-[#F5F2EB] hover:bg-[#2E4A3D] hover:text-white text-[#2E4A3D] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+                  >
+                    {t.contactMemberBtn}
+                  </button>
                 </div>
               </div>
+            );
+          })}
+        </div>
 
-              <div className="border-t border-[#F0ECE1] pt-3 text-xs text-[#525E56] space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-[#8C938E]">{t.nativeLang}:</span>
-                  <span className="font-medium text-[#1F2421] capitalize">
-                    {profile.langue_maternelle === 'français' ? '🇫🇷 Français' : '🇳🇴 Norsk'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#8C938E]">{t.targetLang}:</span>
-                  <span className="font-medium text-[#1F2421] capitalize">
-                    {profile.langue_apprise === 'norvégien' ? '🇳🇴 Norsk' : '🇫🇷 Français'} ({profile.niveau})
-                  </span>
-                </div>
-              </div>
+        {/* Bottom Discovery Banner */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#FAF8F5] via-white to-[#FAF8F5] border border-[#E5E1D8] flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+          <div className="space-y-1">
+            <p className="text-xs sm:text-sm font-medium text-[#1F2421]">
+              {locale === 'no'
+                ? `Totalt ${profiles.length} motiverte språktandems i Oslo venter på deg`
+                : `Au total, ${profiles.length} partenaires motivés à Oslo n'attendent que vous`}
+            </p>
+            <p className="text-xs text-[#717A74]">
+              {locale === 'no'
+                ? 'Filtrer etter nabolag (Grünerløkka, Majorstuen, Sentrum...), interesser og favorittkafeer.'
+                : 'Filtrez par quartier (Grünerløkka, Majorstuen, Sentrum...), centres d\'intérêt et cafés favoris.'}
+            </p>
+          </div>
 
-              <p className="text-xs text-[#525E56] line-clamp-2 leading-relaxed">
-                {profile.bio}
-              </p>
-
-              {profile.lieux_preferes && profile.lieux_preferes[0] && (
-                <div className="text-[11px] text-[#2E4A3D] bg-[#FAF8F5] p-2 rounded-lg flex items-center gap-1.5 border border-[#E5E1D8]">
-                  <Coffee className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{profile.lieux_preferes[0].label}</span>
-                </div>
-              )}
-            </div>
-          ))}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => onNavigate('discovery')}
+              className="px-4 py-2.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Compass className="w-4 h-4" />
+              <span>{locale === 'no' ? 'Åpne interaktivt kart & søk' : 'Ouvrir la carte & filtres'}</span>
+            </button>
+          </div>
         </div>
       </section>
 

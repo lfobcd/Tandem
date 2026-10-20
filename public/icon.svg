@@ -1,17 +1,125 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="128" fill="#1F3D2B"/>
-  <!-- Speech bubble 1 (Left - French / Deep Green & White) -->
-  <path d="M140 160 C140 137.9 157.9 120 180 120 L310 120 C332.1 120 350 137.9 350 160 L350 250 C350 272.1 332.1 290 310 290 L210 290 L150 340 L150 280 C144 274 140 262 140 250 Z" fill="#FAF8F5"/>
-  
-  <!-- Norway / Vipps accent bubble (Right - Warm Orange) -->
-  <path d="M220 220 C220 197.9 237.9 180 260 180 L360 180 C382.1 180 400 197.9 400 220 L400 300 C400 322.1 382.1 340 360 340 L350 340 L350 390 L290 340 L260 340 C237.9 340 220 322.1 220 300 Z" fill="#FF5B24"/>
+  <defs>
+    <filter id="bdShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000000" flood-opacity="0.12" />
+    </filter>
+  </defs>
 
-  <!-- Inside chat icons / text: P & P -->
-  <text x="215" y="225" font-family="system-ui, -apple-system, sans-serif" font-size="76" font-weight="800" fill="#1F3D2B" text-anchor="middle">FR</text>
-  <text x="325" y="280" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" fill="#FFFFFF" text-anchor="middle">NO</text>
+  <!-- Background rounded canvas -->
+  <rect width="512" height="512" rx="128" fill="#FAF8F5" stroke="#E5E0D5" stroke-width="8" />
 
-  <!-- Small Coffee Cup Motif at bottom left -->
-  <circle cx="160" cy="380" r="32" fill="#E8EDE6"/>
-  <path d="M148 375 C148 368 172 368 172 375 L170 390 C170 394 166 397 160 397 C154 397 150 394 150 390 Z" fill="#1F3D2B"/>
-  <path d="M170 378 C175 378 178 382 178 386 C178 390 174 392 170 392" fill="none" stroke="#1F3D2B" stroke-width="3" stroke-linecap="round"/>
+  <!-- Subtle BD halftone or warm backdrop shape -->
+  <rect x="24" y="24" width="464" height="464" rx="104" fill="#F4EFE6" opacity="0.6"/>
+
+  {/* Group with slight drop shadow */}
+  <g filter="url(#bdShadow)">
+    {/* --- BULLE 1 : BLEUE FRANÇAISE BD (GAUCHE) --- */}
+    <g id="bulle-fr">
+      {/* Ombre portée plate BD */}
+      <path
+        d="M 140 95 C 90 95 60 125 60 180 C 60 225 90 255 140 255 L 150 255 L 100 335 L 190 255 L 270 255 C 320 255 350 225 350 180 C 350 125 320 95 270 95 Z"
+        fill="#0F172A"
+        opacity="0.15"
+        transform="translate(10, 14)"
+      />
+      {/* Corps bulle bleue */}
+      <path
+        d="M 140 95 C 90 95 60 125 60 180 C 60 225 90 255 140 255 L 150 255 L 100 335 L 190 255 L 270 255 C 320 255 350 225 350 180 C 350 125 320 95 270 95 Z"
+        fill="#1E56B3"
+        stroke="#111827"
+        stroke-width="16"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+      {/* Dégradé doux intérieur */}
+      <path
+        d="M 140 105 C 100 105 72 130 72 180 C 72 190 75 200 80 210 C 95 140 155 110 260 110 C 265 106 240 105 140 105 Z"
+        fill="#3B82F6"
+        opacity="0.5"
+      />
+      {/* Reflet blanc courbé BD */}
+      <path
+        d="M 95 135 C 110 112 145 105 195 105"
+        stroke="#FFFFFF"
+        stroke-width="14"
+        stroke-linecap="round"
+        opacity="0.8"
+      />
+      <circle cx="85" cy="155" r="7" fill="#FFFFFF" opacity="0.8" />
+      {/* Typo BD FR */}
+      <text
+        x="195"
+        y="200"
+        fill="#FFFFFF"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-size="72"
+        font-weight="900"
+        letter-spacing="4px"
+        text-anchor="middle"
+      >FR</text>
+    </g>
+
+    {/* --- ÉTINCELLE BD DE CONVERSATION --- */}
+    <g transform="translate(245, 150)">
+      <path
+        d="M 0 -30 Q 3 -5 25 0 Q 3 5 0 30 Q -3 5 -25 0 Q -3 -5 0 -30 Z"
+        fill="#FBBF24"
+        stroke="#111827"
+        stroke-width="6"
+      />
+      <circle cx="0" cy="0" r="7" fill="#FFFFFF" />
+    </g>
+
+    {/* --- BULLE 2 : ROUGE NORVÉGIENNE BD (DROITE / PREMIER PLAN) --- */}
+    <g id="bulle-no">
+      {/* Ombre portée plate BD */}
+      <path
+        d="M 260 190 C 210 190 180 220 180 275 C 180 320 210 350 260 350 L 335 350 L 410 420 L 370 350 L 390 350 C 440 350 470 320 470 275 C 470 220 440 190 390 190 Z"
+        fill="#0F172A"
+        opacity="0.15"
+        transform="translate(10, 14)"
+      />
+      {/* Corps bulle rouge */}
+      <path
+        d="M 260 190 C 210 190 180 220 180 275 C 180 320 210 350 260 350 L 335 350 L 410 420 L 370 350 L 390 350 C 440 350 470 320 470 275 C 470 220 440 190 390 190 Z"
+        fill="#D92838"
+        stroke="#111827"
+        stroke-width="16"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+      {/* Dégradé doux intérieur */}
+      <path
+        d="M 260 200 C 220 200 192 225 192 275 C 192 285 195 295 200 305 C 215 235 275 205 380 205 C 385 201 360 200 260 200 Z"
+        fill="#EF4444"
+        opacity="0.5"
+      />
+      {/* Reflet blanc courbé BD */}
+      <path
+        d="M 215 230 C 230 207 265 200 315 200"
+        stroke="#FFFFFF"
+        stroke-width="14"
+        stroke-linecap="round"
+        opacity="0.8"
+      />
+      <circle cx="205" cy="250" r="7" fill="#FFFFFF" opacity="0.8" />
+      {/* Typo BD NO */}
+      <text
+        x="330"
+        y="295"
+        fill="#FFFFFF"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-size="72"
+        font-weight="900"
+        letter-spacing="4px"
+        text-anchor="middle"
+      >NO</text>
+    </g>
+
+    {/* Petits traits d'action BD */}
+    <g stroke="#111827" stroke-width="8" stroke-linecap="round" opacity="0.7">
+      <line x1="45" y1="110" x2="35" y2="95" />
+      <line x1="450" y1="375" x2="470" y2="385" />
+    </g>
+  </g>
 </svg>
