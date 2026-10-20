@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageView, UserProfile } from './types';
 import { dataStore } from './lib/supabase';
 import { I18nProvider, useTranslation } from './lib/i18n';
@@ -30,6 +30,10 @@ function MainApp() {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isLaunchKitOpen, setIsLaunchKitOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  useEffect(() => {
+    document.title = 'Tandem Franco-Norsk';
+  }, []);
 
   const handleNavigateAuth = (mode: 'login' | 'signup' = 'signup') => {
     setAuthMode(mode);
