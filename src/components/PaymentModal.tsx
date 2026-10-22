@@ -233,6 +233,36 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <span>{locale === 'no' ? 'Låser opp profiler og kontakter...' : 'Déblocage des contacts...'}</span>
             </div>
           </div>
+        ) : currentUser?.a_paye ? (
+          <div className="p-8 text-center space-y-5 animate-in fade-in duration-200">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-400 to-[#FF5B24] text-white flex items-center justify-center shadow-md">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                {locale === 'no' ? '🔥 Pioner-tilgang aktiv (0 kr)' : '🔥 Accès Pionnier Bêta Actif (0 NOK)'}
+              </span>
+              <h3 className="font-display text-2xl font-normal text-[#1F2421]">
+                {locale === 'no'
+                  ? 'Du har allerede full og ubegrenset tilgang!'
+                  : 'Vous avez déjà un accès illimité à vie !'}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#525E56] max-w-sm mx-auto leading-relaxed">
+                {locale === 'no'
+                  ? 'Kontoen din er en av de 50 første registrert under lanseringen. Du kan kontakte alle partnere helt gratis uten å betale!'
+                  : 'Votre profil bénéficie de l’offre Bêta gratuite réservée aux 50 premiers membres. La messagerie et toutes les fonctionnalités sont débloquées à vie !'}
+              </p>
+            </div>
+            <div className="pt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-3 bg-[#2E4A3D] text-white text-xs font-semibold rounded-xl hover:bg-[#23382E] transition-all cursor-pointer shadow-xs"
+              >
+                {locale === 'no' ? 'Lukk og fortsett' : 'Continuer sur Tandem'}
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="p-6 sm:p-7 space-y-5">
             {/* Header */}

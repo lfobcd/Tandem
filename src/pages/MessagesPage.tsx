@@ -95,8 +95,10 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
   useEffect(() => {
     if (initialConversationId) {
       setSelectedConvId(initialConversationId);
+    } else if (!selectedConvId && conversations.length > 0) {
+      setSelectedConvId(conversations[0].id);
     }
-  }, [initialConversationId]);
+  }, [initialConversationId, conversations, selectedConvId]);
 
   // Load messages whenever selected conversation changes
   useEffect(() => {

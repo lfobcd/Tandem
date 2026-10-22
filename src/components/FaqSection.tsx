@@ -27,8 +27,9 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ onNavigate, currentUser 
   const [selectedCategory, setSelectedCategory] = useState<FaqCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({
-    'how-tandem-works': true, // Open the first item by default for immediate clarity
-    'language-level': true, // And level question
+    'who-created-tandem': true, // Open founder story by default
+    'beta-50-free-spots': true, // Open beta free spots offer by default
+    'how-tandem-works': true, // Open how tandem works by default
   });
 
   const toggleExpand = (id: string) => {

@@ -546,8 +546,17 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E5E1D8] text-xs shadow-xs">
             <div className="text-left">
               <span className="text-[#717A74] block">{t.yourStatus}</span>
-              <span className="font-medium text-[#1F2421]">
-                {currentUser.a_paye ? t.statusUnlimitedActive : t.statusFreeBrowse}
+              <span className="font-medium text-[#1F2421] flex items-center gap-1.5 mt-0.5">
+                {currentUser.is_beta_pioneer ? (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                    <span>🔥</span>
+                    <span>{locale === 'no' ? 'Pioner (Gratis)' : 'Pionnier Bêta (Gratuit)'}</span>
+                  </span>
+                ) : currentUser.a_paye ? (
+                  t.statusUnlimitedActive
+                ) : (
+                  t.statusFreeBrowse
+                )}
               </span>
             </div>
             {!currentUser.a_paye && (
@@ -1227,6 +1236,12 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                               {locale === 'no' ? 'Fiktiv profil' : 'Profil factice'}
                             </span>
                           )}
+                          {profile.is_beta_pioneer && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0 flex items-center gap-0.5">
+                              <span>🔥</span>
+                              <span>{locale === 'no' ? 'Pioner' : 'Pionnier Bêta'}</span>
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-[#717A74] flex items-center gap-1 truncate">
                           <MapPin className="w-3 h-3 text-[#2E4A3D] shrink-0" />
@@ -1470,6 +1485,12 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                   {activeProfile.is_factice && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
                       {locale === 'no' ? 'Fiktiv profil (Demo)' : 'Profil factice (Démo)'}
+                    </span>
+                  )}
+                  {activeProfile.is_beta_pioneer && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                      <span>🔥</span>
+                      <span>{locale === 'no' ? 'Pioner' : 'Pionnier Bêta'}</span>
                     </span>
                   )}
                   <span className="text-[11px] text-[#717A74] bg-[#F5F2EB] px-2 py-0.5 rounded-full">

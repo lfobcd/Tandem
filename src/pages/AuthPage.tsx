@@ -12,6 +12,7 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle2,
+  Flame,
 } from 'lucide-react';
 import { TermsModal } from '../components/TermsModal';
 import { SocialAuthModal } from '../components/SocialAuthModal';
@@ -29,6 +30,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 }) => {
   const { t, locale } = useTranslation();
   const [isSignUp, setIsSignUp] = useState(initialMode !== 'login');
+  const betaStats = dataStore.getBetaPioneerStats();
 
   useEffect(() => {
     if (initialMode) {
@@ -215,7 +217,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           bio: "Hei! J'apprends le norvégien à Oslo. Prêt pour des tandems sympas autour d'un café !",
           envies: 'Échanges en français et en norvégien.',
           photo_url: '',
-          a_paye: false,
+          a_paye: true,
+          is_beta_pioneer: true,
+          beta_rank: 1,
           derniere_activite: new Date().toISOString(),
           disponibilites: [{ day: 'mardi', slots: ['soir'] }],
         };
@@ -236,6 +240,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           <p className="text-xs text-[#525E56] leading-relaxed">
             {isSignUp ? t.authSubtitleSignUp : t.authSubtitleLogin}
           </p>
+        </div>
+
+        {/* Beta Launch 50 Free Spots Banner with Live Countdown */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-[#FFFDF8] to-orange-50 border border-amber-300 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#FF5B24] text-white shrink-0 shadow-xs">
+                <Flame className="w-3.5 h-3.5 animate-pulse" />
+              </span>
+              <span className="text-xs font-bold text-[#1F2421]">
+                {locale === 'no' ? 'Beta-lansering: Gratis for de 50 første' : 'Offre Bêta : 0 NOK pour les 50 premiers'}
+              </span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-[#FF5B24] text-white text-[10px] font-bold">
+              {locale === 'no' ? '0 kr' : '100% Offert'}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-[#525E56] leading-snug">
+            {locale === 'no'
+              ? `De 50 første som melder seg på får gratis livslang tilgang! Kun ${betaStats.remainingSpots} plasser igjen (${betaStats.registeredCount}/50 reservert).`
+              : `Les 50 premiers membres bénéficient de la gratuité totale à vie ! Plus que ${betaStats.remainingSpots} places gratuites (${betaStats.registeredCount}/50 réservées).`}
+          </p>
+
+          <div className="w-full h-1.5 bg-amber-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-amber-500 to-[#FF5B24] rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
+            />
+          </div>
         </div>
 
         {/* Toggle between Inscription and Connexion */}

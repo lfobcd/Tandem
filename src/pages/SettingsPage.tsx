@@ -302,13 +302,21 @@ CREATE TABLE public.messages (
           </div>
 
           <span
-            className={`px-3 py-1 text-xs font-medium rounded-full ${
-              currentUser?.a_paye
+            className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1 ${
+              currentUser?.is_beta_pioneer
+                ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                : currentUser?.a_paye
                 ? 'bg-[#E8EDE6] text-[#2E4A3D]'
                 : 'bg-[#F5F2EB] text-[#717A74]'
             }`}
           >
-            {currentUser?.a_paye ? t.statusUnlimitedActive : t.statusFreeBrowse}
+            {currentUser?.is_beta_pioneer ? (
+              <span>🔥 {locale === 'no' ? 'Pioner (Gratis Bêta)' : 'Pionnier Bêta (Gratuit)'}</span>
+            ) : currentUser?.a_paye ? (
+              t.statusUnlimitedActive
+            ) : (
+              t.statusFreeBrowse
+            )}
           </span>
         </div>
 
@@ -340,14 +348,18 @@ CREATE TABLE public.messages (
         ) : (
           <div className="p-3 bg-[#F2F6F3] rounded-xl border border-[#D5E5DA] text-xs text-[#2E4A3D] flex items-center justify-between">
             <span className="font-medium">
-              {locale === 'no' ? '✓ Ubegrenset tilgang er aktiv på din konto.' : '✓ Accès illimité actif sur votre compte.'}
+              {currentUser?.is_beta_pioneer
+                ? (locale === 'no'
+                    ? '🎉 Gratulerer! Du er blant de 50 første medlemmene og har gratis livslang tilgang til alt.'
+                    : '🎉 Félicitations ! Vous faites partie des 50 premiers membres : accès gratuit illimité à vie.')
+                : (locale === 'no' ? '✓ Ubegrenset tilgang er aktiv på din konto.' : '✓ Accès illimité actif sur votre compte.')}
             </span>
             <button
               type="button"
               onClick={() => setIsPaymentModalOpen(true)}
               className="text-xs underline text-[#2E4A3D] cursor-pointer"
             >
-              {locale === 'no' ? 'Test Vipps-betaling på nytt' : 'Tester le paiement Vipps à nouveau'}
+              {locale === 'no' ? 'Vis detaljer' : 'Voir les détails'}
             </button>
           </div>
         )}

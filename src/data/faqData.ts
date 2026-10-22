@@ -60,6 +60,60 @@ export const FAQ_GOLDEN_RULES: GoldenRule[] = [
 
 export const FAQ_ITEMS: FaqItem[] = [
   {
+    id: 'who-created-tandem',
+    category: 'basics',
+    questionFr: "Qui a créé Tandem Franco-Norsk et quelle est son histoire ?",
+    questionNo: "Hvem har skapt Tandem Franco-Norsk, og hva er historien bak?",
+    badgeFr: "Fondateur & Vision",
+    badgeNo: "Grunnlegger & Visjon",
+    answerFr:
+      "Le site Tandem Franco-Norsk a été créé par Léo Amilhat, passionné de pédagogie et d'échange linguistique. Professeur au Lycée Français d'Oslo (LFRD) et professeur de Français Langue Étrangère (FLE) à l'Atelier 24, Léo désirait lui-même disposer d'une véritable plateforme d'échange pour apprendre et pratiquer le norvégien au quotidien. Devant le manque d'outil dédié, convivial et géolocalisé pour connecter les francophones et les norvégiens à Oslo, il a conçu Tandem avec la conviction que la langue s'apprend avant tout dans la bienveillance, le partage direct et la convivialité d'un café.",
+    answerNo:
+      "Tandem Franco-Norsk ble skapt av Léo Amilhat, som brenner for pedagogikk og språkutveksling. Han er lærer ved Lycée Français d'Oslo (LFRD) og fransklærer (FLE) ved Atelier 24. Léo ønsket selv å finne en dedikert utvekslingsplattform for å lære og praktisere norsk i hverdagen. Siden det manglet en enkel, trygg og lokal plattform for å koble fransktalende og norsktalende i Oslo, skapte han Tandem — med troen på at språk læres best gjennom hyggelige samtaler og gjensidig nysgjerrighet over en god kaffe.",
+    keywords: [
+      'léo',
+      'amilhat',
+      'léo amilhat',
+      'créateur',
+      'fondateur',
+      'lycée français',
+      'oslo',
+      'lfrd',
+      'atelier 24',
+      'fle',
+      'pédagogie',
+      'qui',
+      'hvem',
+      'grunnlegger',
+      'lærer',
+    ],
+  },
+  {
+    id: 'beta-50-free-spots',
+    category: 'pricing',
+    questionFr: "Comment fonctionne la gratuité de la version Bêta pour les 50 premiers inscrits ?",
+    questionNo: "Hvordan fungerer gratistilbudet i betaversjonen for de 50 første som melder seg på?",
+    badgeFr: "Offre Bêta 0 NOK",
+    badgeNo: "Beta-tilbud 0 kr",
+    answerFr:
+      "Pour récompenser les premiers membres qui font vivre la communauté à Oslo, les 50 premiers inscrits bénéficient automatiquement d'un accès illimité et complet 100% GRATUIT à vie (au lieu de la contribution de 39 NOK). Aucun paiement ni coordonnées bancaires ne sont demandés : vous pouvez envoyer des messages et organiser vos tandems immédiatement. Un décompte en temps réel sur la page d'accueil affiche les places gratuites restantes avant le retour au tarif standard.",
+    answerNo:
+      "For å belønne de første medlemmene som bygger opp fellesskapet i Oslo, får de 50 første som registrerer seg automatisk full og ubegrenset tilgang 100% GRATIS for alltid (ordinær engangspris 39 kr). Ingen betaling eller kort kreves: du kan sende meldinger og avtale kafémøter med en gang. En sanntidsteller på forsiden viser hvor mange gratisplasser som gjenstår før standardpris trer i kraft.",
+    keywords: [
+      '50',
+      'premiers',
+      'bêta',
+      'gratuit',
+      'décompte',
+      'offre',
+      'lancement',
+      '0 nok',
+      'gratis',
+      'beta',
+      'nedtelling',
+    ],
+  },
+  {
     id: 'how-tandem-works',
     category: 'basics',
     questionFr: "Qu'est-ce qu'un tandem linguistique et comment se déroule une première rencontre ?",

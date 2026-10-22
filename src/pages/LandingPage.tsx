@@ -4,6 +4,7 @@ import { useTranslation } from '../lib/i18n';
 import heroCafeImage from '../assets/images/hero_scandi_cafe_1790239285793.jpg';
 import { FaqSection } from '../components/FaqSection';
 import { Atelier24Promo } from '../components/Atelier24Promo';
+import { dataStore } from '../lib/supabase';
 import {
   ArrowRight,
   Coffee,
@@ -13,6 +14,9 @@ import {
   Users,
   Compass,
   MessageSquare,
+  Flame,
+  Gift,
+  Award,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -32,6 +36,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const { t, locale } = useTranslation();
   const [memberFilter, setMemberFilter] = useState<'all' | 'fr' | 'no'>('all');
+
+  // Dynamic Beta Pioneer stats (first 50 users free offer countdown)
+  const betaStats = useMemo(() => {
+    return dataStore.getBetaPioneerStats(profiles.length);
+  }, [profiles]);
 
   // Compute newest members sorted by recent activity or new registration
   const displayedNewMembers = useMemo(() => {
@@ -120,6 +129,60 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-[#2E4A3D] shrink-0" />
                 <span>{t.heroCheckCoffeePrice}</span>
+              </div>
+            </div>
+
+            {/* Beta Launch 50 Spots Countdown Banner */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/95 via-[#FFFDF8] to-orange-50/80 border-2 border-amber-300 shadow-xs space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#FF5B24] text-white shadow-xs shrink-0">
+                    <Flame className="w-4 h-4 animate-pulse" />
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold text-[#1F2421] tracking-wide uppercase">
+                        {locale === 'no' ? 'Offisiell Beta-lansering' : 'Lancement Version Bêta'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FF5B24] text-white">
+                        {locale === 'no' ? '0 kr for de 50 første' : '100% GRATUIT pour les 50 premiers'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-[#525E56] font-medium block">
+                      {locale === 'no'
+                        ? 'De 50 første som registrerer seg får full livslang tilgang helt gratis!'
+                        : 'Accès illimité et messagerie offerts à vie (au lieu de la souscription 39 NOK)'}
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-white/95 border border-amber-300 px-3 py-1.5 rounded-xl shadow-2xs text-right">
+                  <span className="text-[10px] uppercase font-bold text-[#717A74] block">
+                    {locale === 'no' ? 'Gjenstående plasser' : 'Places gratuites'}
+                  </span>
+                  <span className="font-display text-base font-bold text-[#FF5B24]">
+                    {betaStats.remainingSpots} / {betaStats.maxSpots}
+                  </span>
+                </div>
+              </div>
+
+              {/* Countdown progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-medium text-[#1F2421]">
+                  <span>
+                    🔥 <strong>{betaStats.registeredCount}</strong> sur <strong>{betaStats.maxSpots}</strong> places réservées
+                  </span>
+                  <span className="text-xs font-bold text-[#2E4A3D]">
+                    {locale === 'no'
+                      ? `Kun ${betaStats.remainingSpots} gratisplasser igjen !`
+                      : `Plus que ${betaStats.remainingSpots} places gratuites !`}
+                  </span>
+                </div>
+                <div className="w-full h-3 bg-amber-100 rounded-full overflow-hidden p-0.5 border border-amber-200">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 via-[#FF5B24] to-emerald-600 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -403,6 +466,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                               <span>{t.newMemberBadge}</span>
                             </span>
                           )}
+                          {profile.is_beta_pioneer && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200 shrink-0 flex items-center gap-1" title="Bénéficie de l'accès bêta gratuit">
+                              <Flame className="w-2.5 h-2.5 text-amber-600" />
+                              <span>{locale === 'no' ? 'Pioner' : 'Pionnier Bêta'}</span>
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-[#717A74] flex items-center gap-1 truncate mt-0.5">
                           <MapPin className="w-3 h-3 text-[#2E4A3D] shrink-0" />
@@ -580,30 +649,76 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </button>
             </div>
 
-            {/* Plan 2: Lifetime Unlimited Subscription */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFBF9] border-2 border-[#FF5B24] flex flex-col justify-between space-y-6 relative shadow-sm">
-              <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-[#FF5B24] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs">
-                {locale === 'no' ? 'Anbefalt · Ubegrenset' : 'Accès illimité · Recommandé'}
+            {/* Plan 2: Beta Launch Free 50 Spots Offer / Lifetime Access */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFBF9] border-2 border-[#FF5B24] flex flex-col justify-between space-y-6 relative shadow-md">
+              <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-[#FF5B24] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs flex items-center gap-1">
+                <Flame className="w-3 h-3" />
+                <span>
+                  {betaStats.isFreeOfferActive
+                    ? (locale === 'no' ? 'Lanseringstilbud · 0 kr' : 'Offre Bêta 0 NOK · 50 premiers')
+                    : (locale === 'no' ? 'Anbefalt · Ubegrenset' : 'Accès illimité · Recommandé')}
+                </span>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-[#FF5B24] uppercase tracking-wider">
-                    {locale === 'no' ? 'Full tilgang (Vipps)' : 'Souscription unique'}
+                    {betaStats.isFreeOfferActive
+                      ? (locale === 'no' ? 'Pioner-tilgang (Beta)' : 'Statut Membre Pionnier Bêta')
+                      : (locale === 'no' ? 'Full tilgang (Vipps)' : 'Souscription unique')}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFEAE2] text-[#FF5B24] text-xs font-semibold">
-                    39 kr
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                    {betaStats.isFreeOfferActive ? '0 NOK' : '39 kr'}
                   </span>
                 </div>
+
                 <div className="space-y-1">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="font-display text-3xl font-bold text-[#FF5B24]">39 NOK</span>
-                    <span className="text-xs text-[#717A74]">/ {locale === 'no' ? 'engangsbeløp' : 'paiement unique (~3,50 €)'}</span>
+                  <div className="flex items-baseline gap-2">
+                    {betaStats.isFreeOfferActive ? (
+                      <>
+                        <span className="font-display text-3xl sm:text-4xl font-bold text-emerald-700">0 NOK</span>
+                        <span className="text-sm text-neutral-400 line-through font-medium">39 NOK</span>
+                        <span className="text-xs text-[#717A74]">/ {locale === 'no' ? 'gratis for alltid' : 'gratuit à vie'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-display text-3xl font-bold text-[#FF5B24]">39 NOK</span>
+                        <span className="text-xs text-[#717A74]">/ {locale === 'no' ? 'engangsbeløp' : 'paiement unique (~3,50 €)'}</span>
+                      </>
+                    )}
                   </div>
                   <span className="text-xs text-[#717A74] block">
-                    {locale === 'no' ? 'Prisen på en kaffe i Oslo · Ingen binding' : "Le prix d'un café à Oslo · Accès à vie"}
+                    {betaStats.isFreeOfferActive
+                      ? (locale === 'no'
+                          ? 'Tilbudet gjelder automatisk de 50 første som oppretter konto!'
+                          : 'Offre exclusive réservée aux 50 premiers inscrits sur la version Bêta !')
+                      : (locale === 'no' ? 'Prisen på en kaffe i Oslo · Ingen binding' : "Le prix d'un café à Oslo · Accès à vie")}
                   </span>
                 </div>
+
+                {/* Mini countdown bar in pricing card */}
+                {betaStats.isFreeOfferActive && (
+                  <div className="p-3 bg-amber-50/90 rounded-2xl border border-amber-200/90 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-[#1F2421]">
+                      <span className="flex items-center gap-1">
+                        <Flame className="w-3.5 h-3.5 text-[#FF5B24]" />
+                        <span>{betaStats.registeredCount} / {betaStats.maxSpots} places réservées</span>
+                      </span>
+                      <span className="text-[#FF5B24]">
+                        {locale === 'no'
+                          ? `Kun ${betaStats.remainingSpots} igjen!`
+                          : `Plus que ${betaStats.remainingSpots} gratuites !`}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-amber-200/80 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-[#FF5B24] rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <ul className="space-y-2.5 text-xs text-[#1F2421] pt-2">
                   <li className="flex items-center gap-2 font-medium">
                     <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
@@ -615,11 +730,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </li>
                   <li className="flex items-center gap-2 font-medium">
                     <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
-                    <span>{locale === 'no' ? 'Direkte betaling med Vipps til 92 13 17 92 eller kort' : 'Paiement direct Vipps (92 13 17 92) ou Carte'}</span>
+                    <span>
+                      {betaStats.isFreeOfferActive
+                        ? (locale === 'no'
+                            ? 'Ingen betaling eller Vipps kreves for de 50 første'
+                            : 'Aucun paiement ni Vipps requis pour les 50 premiers (0 NOK)')
+                        : (locale === 'no'
+                            ? 'Direkte betaling med Vipps til 92 13 17 92 eller kort'
+                            : 'Paiement direct Vipps (92 13 17 92) ou Carte')}
+                    </span>
                   </li>
                   <li className="flex items-center gap-2 font-medium">
                     <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
-                    <span>{locale === 'no' ? 'Verifisert medlemsmerke på profilen din' : 'Badge membre vérifié sur votre profil'}</span>
+                    <span>
+                      {locale === 'no'
+                        ? 'Spesielt «Pioner»-merke på profilen din'
+                        : 'Badge Membre Pionnier Bêta sur votre profil'}
+                    </span>
                   </li>
                 </ul>
               </div>
@@ -639,10 +766,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     onNavigate('discovery');
                   }
                 }}
-                className="w-full py-3 bg-[#FF5B24] hover:bg-[#E54A15] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-[#FF5B24] hover:bg-[#E54A15] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
               >
                 {currentUser?.a_paye ? (
-                  <span>{locale === 'no' ? '✓ Du har ubegrenset tilgang' : '✓ Vous avez la souscription active'}</span>
+                  <span>{locale === 'no' ? '✓ Du har ubegrenset tilgang (Pioner)' : '✓ Accès Pionnier Bêta actif'}</span>
+                ) : betaStats.isFreeOfferActive ? (
+                  <>
+                    <span>
+                      {locale === 'no'
+                        ? `Bli med nå gratis (${betaStats.remainingSpots} plasser igjen)`
+                        : `Profiter de la gratuité Bêta (${betaStats.remainingSpots} places restantes)`}
+                    </span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 ) : currentUser ? (
                   <>
                     <span>{locale === 'no' ? 'Lås opp nå med Vipps (39 kr)' : 'Payer la souscription (39 kr)'}</span>

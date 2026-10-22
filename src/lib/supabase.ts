@@ -133,6 +133,7 @@ export const supabaseAuth = {
     }
 
     const isManagerAccount = targetEmail.toLowerCase() === 'bcdlfo@gmail.com';
+    const isBetaFree = accounts.length < 50;
 
     // Otherwise create brand new user profile
     const newUser: UserProfile = {
@@ -158,7 +159,9 @@ export const supabaseAuth = {
             targetLang === 'français' ? 'norvégien' : 'français'
           } avec Tandem !`,
       photo_url: targetPhoto,
-      a_paye: isManagerAccount ? true : false,
+      a_paye: isManagerAccount ? true : (isBetaFree ? true : false),
+      is_beta_pioneer: isBetaFree ? true : undefined,
+      beta_rank: isBetaFree ? accounts.length + 1 : undefined,
       is_admin: isManagerAccount ? true : undefined,
       derniere_activite: new Date().toISOString(),
       lieux_preferes: [
@@ -237,6 +240,16 @@ const STORAGE_KEYS = {
   VIPPS_REQUESTS: 'tandem_vipps_requests_v1',
 };
 
+export const BETA_MAX_FREE_SPOTS = 50;
+
+export interface BetaPioneerStats {
+  maxSpots: number;
+  registeredCount: number;
+  remainingSpots: number;
+  isFreeOfferActive: boolean;
+  progressPercent: number;
+}
+
 // Default current user profile template (used ONLY when testing, NEVER automatically logged in)
 export const DEFAULT_CURRENT_USER: UserProfile = {
   id: 'current_user',
@@ -249,7 +262,9 @@ export const DEFAULT_CURRENT_USER: UserProfile = {
   bio: 'Passionné de randonnée dans la Nordmarka et de design scandinave. Je vis à Oslo depuis un an et je cherche un(e) partenaire norvégien(ne) pour papoter en norsk et en français !',
   envies: 'Échanges décontractés autour d\'un café, sorties à vélo ou balades au bord du fjord.',
   photo_url: '',
-  a_paye: false,
+  a_paye: true,
+  is_beta_pioneer: true,
+  beta_rank: 1,
   derniere_activite: new Date().toISOString(),
   disponibilites: [
     { day: 'mardi', slots: ['soir'] },
@@ -327,11 +342,33 @@ const initStorage = () => {
           ...INITIAL_PROFILES[0],
           email: 'astrid@tandem.no',
           a_paye: true,
+          is_beta_pioneer: true,
+          beta_rank: 2,
         },
       },
     ];
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(defaultAccounts));
   }
+
+  // Ensure beta pioneers have a_paye = true for the first 50 registered accounts
+  try {
+    const rawAccs = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+    if (rawAccs) {
+      const accList: UserAccount[] = JSON.parse(rawAccs);
+      let changed = false;
+      accList.slice(0, BETA_MAX_FREE_SPOTS).forEach((acc, i) => {
+        if (!acc.profile.a_paye || !acc.profile.is_beta_pioneer) {
+          acc.profile.a_paye = true;
+          acc.profile.is_beta_pioneer = true;
+          acc.profile.beta_rank = i + 1;
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accList));
+      }
+    }
+  } catch {}
 
   // Ensure bcdlfo@gmail.com manager account exists in accounts store
   try {
@@ -445,6 +482,23 @@ export const dataStore = {
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
   },
 
+  getBetaPioneerStats(profilesCount?: number): BetaPioneerStats {
+    // Total count of members on the platform (responsive to real registrations)
+    const count = typeof profilesCount === 'number'
+      ? profilesCount
+      : this.getProfiles().length;
+
+    const registeredCount = Math.min(BETA_MAX_FREE_SPOTS, Math.max(0, count));
+    const remainingSpots = Math.max(0, BETA_MAX_FREE_SPOTS - registeredCount);
+    return {
+      maxSpots: BETA_MAX_FREE_SPOTS,
+      registeredCount,
+      remainingSpots,
+      isFreeOfferActive: remainingSpots > 0,
+      progressPercent: Math.round((registeredCount / BETA_MAX_FREE_SPOTS) * 100),
+    };
+  },
+
   registerAccount(params: {
     email: string;
     password: string;
@@ -457,6 +511,8 @@ export const dataStore = {
     if (existing) {
       return { success: false, error: 'Un compte existe déjà avec cette adresse email.' };
     }
+
+    const isBetaFree = accounts.length < BETA_MAX_FREE_SPOTS;
 
     const newProfile: UserProfile = {
       id: 'user_' + Date.now(),
@@ -478,7 +534,9 @@ export const dataStore = {
         params.langue_maternelle === 'français' ? 'norvégien' : 'français'
       } !`,
       photo_url: '',
-      a_paye: false,
+      a_paye: isBetaFree ? true : false,
+      is_beta_pioneer: isBetaFree ? true : false,
+      beta_rank: isBetaFree ? accounts.length + 1 : undefined,
       derniere_activite: new Date().toISOString(),
       lieux_preferes: [
         {

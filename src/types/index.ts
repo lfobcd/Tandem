@@ -71,6 +71,8 @@ export interface UserProfile {
   bio: string;
   photo_url: string;
   a_paye: boolean;
+  is_beta_pioneer?: boolean;
+  beta_rank?: number;
   is_completed?: boolean;
   vipps_status?: 'none' | 'pending' | 'approved' | 'rejected';
   vipps_phone?: string;
