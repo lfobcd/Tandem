@@ -443,7 +443,7 @@ CREATE TABLE public.messages (
 
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
             <span className="text-[11px] text-[#717A74]">
-              {locale === 'no' ? 'Uten nøkkel benyttes den innebygde vektorkartvisningen.' : "Si aucun jeton n'est renseigné, la carte utilise le visualiseur cartographique intégré."}
+              {locale === 'no' ? 'Google Maps er direkte integrert som standard for alle møtesteder i Oslo.' : 'Google Maps est directement intégré par défaut pour tous les lieux de rencontre à Oslo.'}
             </span>
             <button
               type="submit"

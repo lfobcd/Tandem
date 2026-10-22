@@ -522,11 +522,11 @@ export const translations: Record<Locale, Translations> = {
     registeredPlaces: 'Vos lieux enregistrés :',
     suggestionsOslo: 'Suggestions Oslo :',
     placeInputPlaceholder: 'Nom du lieu...',
-    mapReadyMode: 'Mode cartographique prêt',
+    mapReadyMode: 'Google Maps interactif',
     mapReadyDesc:
-      'Cliquez sur la carte stylisée ci-dessous pour placer un point à Oslo ou ajoutez directement vos adresses favorites.',
-    clickToDropPin: 'Cliquez pour déposer un lieu',
-    customMapboxNotice: 'Clé Mapbox : personnalisable dans Réglages',
+      'Recherchez un café, une bibliothèque ou une adresse à Oslo avec Google Maps en direct.',
+    clickToDropPin: 'Sélectionner ce lieu sur Google Maps',
+    customMapboxNotice: 'Intégration directe Google Maps Oslo',
 
     paymentBadge: "Paiement unique · Le prix d'un café",
     paymentModalTitle: 'Contacter votre tandem',
@@ -843,11 +843,11 @@ export const translations: Record<Locale, Translations> = {
     registeredPlaces: 'Dine lagrede steder:',
     suggestionsOslo: 'Forslag i Oslo:',
     placeInputPlaceholder: 'Stedets navn...',
-    mapReadyMode: 'Kartmodus klar',
+    mapReadyMode: 'Google Maps interaktiv',
     mapReadyDesc:
-      'Klikk på kartet for å plassere et punkt i Oslo, eller søk etter adressen.',
-    clickToDropPin: 'Klikk for å sette et punkt',
-    customMapboxNotice: 'Mapbox-nøkkel: kan tilpasses i Innstillinger',
+      'Søk etter kafé, bibliotek eller adresse i Oslo direkte med Google Maps.',
+    clickToDropPin: 'Velg dette stedet på Google Maps',
+    customMapboxNotice: 'Direkte Google Maps integrasjon i Oslo',
 
     paymentBadge: 'Engangsbeløp · Prisen på en kaffe',
     paymentModalTitle: 'Ta kontakt med din partner',
