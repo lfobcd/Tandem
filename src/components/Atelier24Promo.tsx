@@ -60,55 +60,52 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
 
   return (
     <section aria-labelledby="atelier24-heading" className="max-w-6xl mx-auto px-4 sm:px-6">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#1E3A8A] text-white p-6 sm:p-10 lg:p-12 shadow-xl border border-slate-700/60">
-        {/* Subtle decorative background circles */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FAFBFD] via-white to-[#EFF6FF] text-[#1F2421] p-6 sm:p-10 lg:p-12 shadow-sm border-2 border-blue-200/80">
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Main Info Column */}
           <div className="lg:col-span-8 space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20 inline-flex items-center">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              {/* Atelier 24 Logo Badge */}
+              <div className="bg-white px-3.5 py-1.5 rounded-xl border border-blue-200 shadow-2xs inline-flex items-center">
                 <img
-                  src="/images/atelier24_logo_white.svg"
+                  src="/images/atelier24_logo.svg"
                   alt="Atelier 24"
-                  className="h-6 w-auto object-contain"
+                  className="h-7 w-auto object-contain"
                 />
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-400/30">
-                <Sparkles className="w-3 h-3 text-amber-400" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#1E3A8A] text-xs font-bold border border-blue-200">
+                <Sparkles className="w-3.5 h-3.5 text-[#1E40AF]" />
                 <span>
                   {locale === 'no'
                     ? 'Anbefalt franskopplæring i Oslo'
                     : 'Formation recommandée de français à Oslo'}
                 </span>
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs font-semibold text-[#64748B] bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
                 {locale === 'no' ? 'Siden 2008' : 'Depuis 2008'}
               </span>
             </div>
 
             <div className="space-y-2">
-              <h2 id="atelier24-heading" className="font-display text-2xl sm:text-3xl lg:text-4xl font-normal tracking-tight text-white leading-tight">
+              <h2 id="atelier24-heading" className="font-display text-2xl sm:text-3xl lg:text-4xl font-normal tracking-tight text-[#0F172A] leading-tight">
                 {locale === 'no' ? (
                   <>
                     Vil du lære fransk? <br />
-                    <span className="italic text-blue-300">
+                    <span className="italic font-normal text-[#1E40AF]">
                       Oppdag franskkursene hos Atelier 24
                     </span>
                   </>
                 ) : (
                   <>
                     Voulez-vous apprendre le français ? <br />
-                    <span className="italic text-blue-300">
+                    <span className="italic font-normal text-[#1E40AF]">
                       Découvrez les cours de français chez Atelier 24
                     </span>
                   </>
                 )}
               </h2>
 
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+              <p className="text-sm sm:text-base text-[#334155] leading-relaxed max-w-2xl font-normal">
                 {locale === 'no' ? (
                   <>
                     Ønsker du en solid og personlig franskopplæring som supplement til
@@ -130,35 +127,35 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
               </p>
             </div>
 
-            {/* Key benefits list */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs text-slate-200">
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
+            {/* Key benefits list with high-contrast cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-2 text-xs text-[#1E293B]">
+              <div className="p-3 rounded-xl bg-white border border-blue-100/90 shadow-2xs flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#1E40AF] shrink-0 mt-0.5" />
+                <span className="font-medium">
                   {locale === 'no'
                     ? 'Nivå A1 til C1: Grunnkurs, hverdagsspråk og viderekomne'
                     : 'Niveaux A1 à C1 : Débutant complet, intermédiaire et perfectionnement'}
                 </span>
               </div>
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
+              <div className="p-3 rounded-xl bg-white border border-blue-100/90 shadow-2xs flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#1E40AF] shrink-0 mt-0.5" />
+                <span className="font-medium">
                   {locale === 'no'
                     ? 'Små grupper i Oslo (Bogstadveien) & nettkurs i hele Norge'
                     : 'Petits groupes à Oslo (Bogstadveien) & cours en ligne partout en Norvège'}
                 </span>
               </div>
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
+              <div className="p-3 rounded-xl bg-white border border-blue-100/90 shadow-2xs flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#1E40AF] shrink-0 mt-0.5" />
+                <span className="font-medium">
                   {locale === 'no'
                     ? 'Eget uttalekurs og tematiske samtaleworkshops'
                     : 'Cours de prononciation / phonétique et ateliers de conversation'}
                 </span>
               </div>
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
+              <div className="p-3 rounded-xl bg-white border border-blue-100/90 shadow-2xs flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#1E40AF] shrink-0 mt-0.5" />
+                <span className="font-medium">
                   {locale === 'no'
                     ? 'Individuell veiledningstime for å finne riktig nivå'
                     : 'Séance d\'orientation personnalisée pour évaluer votre niveau'}
@@ -169,9 +166,9 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
 
           {/* Action Card Column */}
           <div className="lg:col-span-4 flex flex-col justify-center">
-            <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-center space-y-4 shadow-lg">
+            <div className="p-6 rounded-2xl bg-white border-2 border-blue-200/90 text-center space-y-4 shadow-sm">
               {/* Official Atelier 24 Logo Card */}
-              <div className="bg-white p-3.5 rounded-2xl shadow-md border border-white/20 inline-flex items-center justify-center max-w-[220px] mx-auto w-full">
+              <div className="bg-[#FAFBFD] p-3.5 rounded-2xl border border-blue-100 inline-flex items-center justify-center max-w-[200px] mx-auto w-full">
                 <img
                   src="/images/atelier24_logo.svg"
                   alt="Atelier 24 Logo"
@@ -180,10 +177,10 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
               </div>
 
               <div>
-                <span className="text-xs text-blue-200 font-semibold block">
+                <span className="text-xs text-[#1E3A8A] font-bold block">
                   {locale === 'no' ? 'Franskkurs i Oslo & Online' : 'Cours de français à Oslo & En ligne'}
                 </span>
-                <span className="text-[11px] text-slate-300 block mt-1">
+                <span className="text-xs text-[#64748B] block mt-1 font-medium">
                   Holtegata / Bogstadveien · Oslo
                 </span>
               </div>
@@ -193,7 +190,7 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
                   href="http://atelier24.no/nb"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer group"
+                  className="w-full py-3.5 px-4 bg-[#1E40AF] hover:bg-[#1D4ED8] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-xs hover:shadow-md flex items-center justify-center gap-2 cursor-pointer group"
                 >
                   <span>
                     {locale === 'no'
@@ -202,9 +199,14 @@ export const Atelier24Promo: React.FC<Atelier24PromoProps> = ({ variant = 'full'
                   </span>
                   <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </a>
-                <span className="text-[10px] text-slate-400 block mt-2">
+                <span className="text-[11px] font-mono text-[#64748B] block mt-2">
                   http://atelier24.no/nb
                 </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 text-[11px] text-[#64748B] flex items-center justify-center gap-1.5">
+                <span>🇫🇷</span>
+                <span>{locale === 'no' ? 'Morsmålslærere · Små grupper' : 'Professeurs natifs · Petits groupes'}</span>
               </div>
             </div>
           </div>
