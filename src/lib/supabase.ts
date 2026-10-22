@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { UserProfile, PreferredPlace, Message, Conversation } from '../types';
 import { INITIAL_PROFILES, INITIAL_CONVERSATIONS, INITIAL_MESSAGES } from '../data/mockData';
+import { VIPPS_SECURITY_CONFIG } from '../config/vippsSecurity';
 
 // Supabase credentials configuration from env or local config
 const getStoredConfig = () => {
@@ -687,8 +688,8 @@ export const dataStore = {
       userEmail: user.email || 'utilisateur@tandem.oslo',
       userName: user.prenom,
       phone: senderPhone || user.vipps_phone || 'Non renseigné',
-      amountNOK: 39,
-      recipient: '92 13 17 92',
+      amountNOK: VIPPS_SECURITY_CONFIG.amountNOK,
+      recipient: VIPPS_SECURITY_CONFIG.phoneFormatted,
       status: 'pending',
       createdAt: new Date().toISOString(),
     };

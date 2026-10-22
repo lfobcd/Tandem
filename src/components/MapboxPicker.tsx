@@ -13,6 +13,7 @@ import {
   Landmark,
   Layers,
   Plus,
+  Check,
 } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
 
@@ -121,6 +122,7 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
   const { locale } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [searchResults, setSearchResults] = useState<
     { label: string; address: string; lat: number; lon: number; type: 'cafe' | 'library' | 'park' | 'cultural' }[]
   >([]);
@@ -163,7 +165,7 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
       longitude: Number(lng.toFixed(5)),
       latitude: Number(lat.toFixed(5)),
       type,
-      address,
+      address: address || `${finalLabel}, Oslo`,
     };
 
     const updated = [...places, newPlace];
@@ -171,6 +173,68 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
     setActivePreviewQuery(address ? `${finalLabel}, ${address}` : `${finalLabel}, Oslo, Norway`);
     setSearchResults([]);
     setSearchQuery('');
+    setHasSearched(false);
+  };
+
+  // Direct addition of whatever the user typed (e.g. "credo restaurant")
+  const handleAddPlaceDirectly = async (rawName: string) => {
+    const trimmed = rawName.trim();
+    if (!trimmed) return;
+
+    if (places.length >= maxPlaces) {
+      alert(
+        locale === 'no'
+          ? `Du kan velge maksimalt ${maxPlaces} favorittsteder.`
+          : `Vous pouvez enregistrer un maximum de ${maxPlaces} lieux préférés.`
+      );
+      return;
+    }
+
+    // Default coordinates in Oslo
+    let lat = 59.9139;
+    let lon = 10.7522;
+    let detectedAddress = `${trimmed}, Oslo`;
+    let cat: 'cafe' | 'library' | 'park' | 'cultural' = 'cafe';
+
+    const lower = trimmed.toLowerCase();
+    if (lower.includes('bibliotek') || lower.includes('deichman') || lower.includes('library')) {
+      cat = 'library';
+    } else if (lower.includes('park') || lower.includes('hage') || lower.includes('garden')) {
+      cat = 'park';
+    } else if (lower.includes('museum') || lower.includes('musée') || lower.includes('kultur') || lower.includes('teater')) {
+      cat = 'cultural';
+    }
+
+    // Check if matching result already in searchResults
+    const matched = searchResults.find(
+      (r) => r.label.toLowerCase().includes(lower) || lower.includes(r.label.toLowerCase())
+    );
+
+    if (matched) {
+      lat = matched.lat;
+      lon = matched.lon;
+      detectedAddress = matched.address;
+      cat = matched.type;
+    } else {
+      // Try quick geocode lookup for Norway
+      try {
+        const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          trimmed.includes('oslo') || trimmed.includes('norway') ? trimmed : `${trimmed}, Norway`
+        )}&limit=1&addressdetails=1`;
+        const res = await fetch(geocodeUrl);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          lat = parseFloat(data[0].lat);
+          lon = parseFloat(data[0].lon);
+          const parts = data[0].display_name.split(',');
+          detectedAddress = parts.slice(0, 3).join(',').trim();
+        }
+      } catch {
+        // Fallback to default Oslo coords
+      }
+    }
+
+    handleAddPlace(lon, lat, trimmed, cat, detectedAddress);
   };
 
   const handleRemovePlace = (id: string) => {
@@ -192,10 +256,15 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
     const q = queryText.trim().toLowerCase();
     if (!q) {
       setSearchResults([]);
+      setHasSearched(false);
       return;
     }
 
     setIsSearching(true);
+    setHasSearched(true);
+
+    // Update active map preview immediately so Google Maps centers on it!
+    setActivePreviewQuery(`${queryText}, Oslo, Norway`);
 
     // 1. Filter curated Oslo spots immediately
     const matchedCurated = CURATED_OSLO_SPOTS.filter(
@@ -212,14 +281,11 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
       type: s.category,
     }));
 
-    // Update active map preview
-    setActivePreviewQuery(`${queryText}, Oslo, Norway`);
-
-    // 2. Fetch external Nominatim geocoder (biased to Norway / Oslo)
+    // 2. Fetch external Nominatim geocoder (flexible query with countrycode NO)
     try {
       const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        q.includes('oslo') || q.includes('norway') || q.includes('norvège') ? q : `${q}, Oslo, Norway`
-      )}&limit=4&addressdetails=1`;
+        q
+      )}&countrycodes=no&limit=6&addressdetails=1`;
 
       const res = await fetch(searchUrl);
       const data = await res.json();
@@ -304,12 +370,13 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
       return;
     }
 
-    // Pattern 3: User typed a name
-    handlePerformSearch(input);
+    // Pattern 3: User typed a name or query (e.g. "credo restaurant")
+    handleAddPlaceDirectly(input);
+    setGoogleMapsUrlInput('');
     setGoogleImportFeedback(
       locale === 'no'
-        ? 'Søker etter stedet i Oslo...'
-        : 'Recherche du lieu dans Oslo...'
+        ? `Lagt til : "${input}"`
+        : `Lieu ajouté : "${input}"`
     );
   };
 
@@ -364,7 +431,7 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
           {/* External Google Maps Oslo link */}
           <a
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-              searchQuery ? `${searchQuery} Oslo` : 'cafes bibliotheques Oslo Norvege'
+              searchQuery ? `${searchQuery} Oslo` : 'cafes restaurants bibliotheques Oslo Norvege'
             )}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -377,9 +444,9 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
         </div>
       </div>
 
-      {/* Search Bar & Direct Google Maps import */}
+      {/* Search Bar & Direct Action Buttons */}
       <div className="space-y-2">
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-3 text-[#848B85]" />
             <input
@@ -387,46 +454,99 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
+                setActivePreviewQuery(`${e.target.value}, Oslo, Norway`);
                 handlePerformSearch(e.target.value);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  handlePerformSearch(searchQuery);
+                  if (searchQuery.trim()) {
+                    handleAddPlaceDirectly(searchQuery);
+                  }
                 }
               }}
               placeholder={
                 locale === 'no'
-                  ? 'Søk etter kafé, bibliotek, park eller adresse i Oslo (f.eks. Fuglen, Deichman...)'
-                  : 'Rechercher un café, bibliothèque ou adresse à Oslo (ex: Fuglen, Deichman, Tim Wendelboe...)'
+                  ? 'Skriv inn kafé, restaurant, bibliotek eller adresse (f.eks. Credo restaurant, Fuglen...)'
+                  : 'Tapez un café, restaurant, bibliothèque ou adresse (ex: Credo restaurant, Fuglen, Deichman...)'
               }
               className="w-full pl-9 pr-3 py-2.5 text-xs bg-white border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] shadow-2xs"
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => handlePerformSearch(searchQuery)}
-            disabled={isSearching || !searchQuery.trim()}
-            className="px-4 py-2.5 bg-[#2E4A3D] text-white text-xs font-medium rounded-xl hover:bg-[#23382E] transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-          >
-            {isSearching ? (locale === 'no' ? 'Søker...' : 'Recherche...') : locale === 'no' ? 'Søk' : 'Rechercher'}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Direct Add Button - ALWAYS allows adding what was typed */}
+            <button
+              type="button"
+              onClick={() => handleAddPlaceDirectly(searchQuery)}
+              disabled={!searchQuery.trim() || places.length >= maxPlaces}
+              className="px-4 py-2.5 bg-[#2E4A3D] text-white text-xs font-semibold rounded-xl hover:bg-[#23382E] transition-all disabled:opacity-40 cursor-pointer shadow-xs flex items-center gap-1.5"
+              title="Ajouter directement ce lieu à votre profil"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{locale === 'no' ? 'Legg til sted' : 'Ajouter ce lieu'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setShowManualGoogleMaps(!showManualGoogleMaps)}
-            className={`px-3 py-2.5 text-xs font-medium rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-              showManualGoogleMaps
-                ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
-            }`}
-            title="Coller un lien ou coordonnées Google Maps"
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Lien Google Maps</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => handlePerformSearch(searchQuery)}
+              disabled={isSearching || !searchQuery.trim()}
+              className="px-3 py-2.5 bg-[#FAF8F5] text-[#2E4A3D] border border-[#E5E1D8] text-xs font-medium rounded-xl hover:bg-[#EAE5DC] transition-colors disabled:opacity-40 cursor-pointer"
+            >
+              {isSearching ? (locale === 'no' ? 'Søker...' : 'Recherche...') : locale === 'no' ? 'Søk' : 'Rechercher'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowManualGoogleMaps(!showManualGoogleMaps)}
+              className={`px-3 py-2.5 text-xs font-medium rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                showManualGoogleMaps
+                  ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                  : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
+              }`}
+              title="Coller un lien ou coordonnées Google Maps"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lien Google Maps</span>
+            </button>
+          </div>
         </div>
+
+        {/* PROMINENT DIRECT ADD ACTION BANNER: Triggers as soon as user types (solves the Credo restaurant case instantly!) */}
+        {searchQuery.trim().length >= 2 && (
+          <div className="p-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 border-2 border-emerald-400 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-in">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-[#2E4A3D] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                +
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <strong className="text-xs text-[#1F2421] truncate block">
+                    {locale === 'no' ? `Legg til « ${searchQuery} »` : `Ajouter « ${searchQuery} »`}
+                  </strong>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-medium">
+                    Google Maps
+                  </span>
+                </div>
+                <span className="text-[11px] text-[#525E56] truncate block">
+                  {locale === 'no'
+                    ? 'Klikk for å lagre dette stedet direkte på din profil'
+                    : 'Cliquez pour enregistrer ce lieu immédiatement sur votre profil'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleAddPlaceDirectly(searchQuery)}
+              disabled={places.length >= maxPlaces}
+              className="px-4 py-2 bg-[#2E4A3D] text-white text-xs font-semibold rounded-xl hover:bg-[#23382E] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{locale === 'no' ? 'Legg til nå (1 klikk)' : 'Ajouter maintenant (1 clic)'}</span>
+            </button>
+          </div>
+        )}
 
         {/* Collapsible Google Maps Link / GPS input */}
         {showManualGoogleMaps && (
@@ -441,7 +561,7 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
                 </span>
               </span>
               <a
-                href="https://www.google.com/maps/search/cafes+Oslo/"
+                href="https://www.google.com/maps/search/cafes+restaurants+Oslo/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[11px] text-rose-700 hover:underline flex items-center gap-1"
@@ -453,8 +573,8 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
 
             <p className="text-[11px] text-rose-800 leading-relaxed">
               {locale === 'no'
-                ? 'Lim inn en Google Maps-lenke, et stedsnavn eller GPS-koordinater (f.eks. "59.9171, 10.7402") :'
-                : 'Collez un lien Google Maps, un nom de lieu ou des coordonnées GPS (ex: "59.9171, 10.7402") :'}
+                ? 'Lim inn en Google Maps-lenke, et stedsnavn eller GPS-koordinater (f.eks. "Credo restaurant" eller "59.9171, 10.7402") :'
+                : 'Collez un lien Google Maps, un nom d\'établissement ou des coordonnées GPS (ex: "Credo restaurant" ou "59.9171, 10.7402") :'}
             </p>
 
             <div className="flex gap-2">
@@ -462,7 +582,7 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
                 type="text"
                 value={googleMapsUrlInput}
                 onChange={(e) => setGoogleMapsUrlInput(e.target.value)}
-                placeholder="https://maps.google.com/?q=... ou 59.9171, 10.7402"
+                placeholder="Ex: Credo restaurant, https://maps.google.com/?q=... ou 59.9171, 10.7402"
                 className="flex-1 px-3 py-2 text-xs bg-white border border-rose-300 rounded-xl focus:outline-none focus:border-rose-600"
               />
               <button
@@ -482,12 +602,16 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
           </div>
         )}
 
-        {/* Live Search Results Dropdown List */}
-        {searchResults.length > 0 && (
+        {/* Live Search Suggestions Dropdown List */}
+        {hasSearched && searchResults.length > 0 && (
           <div className="p-2 bg-white rounded-2xl border border-[#2E4A3D]/30 shadow-lg space-y-1 z-20">
-            <div className="px-3 py-1 text-[11px] font-semibold text-[#2E4A3D] uppercase tracking-wider">
-              {locale === 'no' ? 'Forslag til steder i Oslo :' : 'Lieux trouvés pour votre profil :'}
+            <div className="px-3 py-1 text-[11px] font-semibold text-[#2E4A3D] uppercase tracking-wider flex items-center justify-between">
+              <span>{locale === 'no' ? 'Forslag funnet i Oslo :' : 'Lieux trouvés à Oslo :'}</span>
+              <span className="text-[10px] text-[#717A74] font-normal">
+                {searchResults.length} {locale === 'no' ? 'treff' : 'résultats'}
+              </span>
             </div>
+
             {searchResults.map((result, idx) => (
               <div
                 key={idx}
@@ -531,6 +655,32 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
             ))}
           </div>
         )}
+
+        {/* If searched and 0 results found, show clear guidance with direct 1-click addition */}
+        {hasSearched && searchResults.length === 0 && searchQuery.trim().length > 0 && !isSearching && (
+          <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E5E1D8] flex items-center justify-between gap-3 text-xs">
+            <div className="space-y-0.5">
+              <span className="text-xs font-semibold text-[#1F2421] block">
+                {locale === 'no'
+                  ? `« ${searchQuery} » er funnet på Google Maps ovenfor !`
+                  : `« ${searchQuery} » est bien repéré sur la carte Google Maps !`}
+              </span>
+              <p className="text-[11px] text-[#717A74]">
+                {locale === 'no'
+                  ? 'Klikk på knappen til høyre for å lagre dette som ditt favorittsted.'
+                  : 'Cliquez sur « Ajouter ce lieu » pour l\'enregistrer directement dans votre profil.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleAddPlaceDirectly(searchQuery)}
+              disabled={places.length >= maxPlaces}
+              className="px-4 py-2 bg-[#2E4A3D] text-white text-xs font-semibold rounded-xl hover:bg-[#23382E] transition-all cursor-pointer shadow-xs shrink-0"
+            >
+              + {locale === 'no' ? 'Legg til nå' : 'Ajouter maintenant'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Real Interactive Google Maps Window */}
@@ -559,12 +709,24 @@ export const MapboxPicker: React.FC<MapboxPickerProps> = ({
       {/* Selected Places List with Google Maps Links & quick previews */}
       {places.length > 0 && (
         <div className="space-y-2.5">
-          <span className="text-xs font-semibold text-[#2E4A3D] uppercase tracking-wider block">
-            {locale === 'no' ? 'Dine valgte møtesteder :' : 'Vos lieux enregistrés pour les tandems :'}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#2E4A3D] uppercase tracking-wider block">
+              {locale === 'no'
+                ? `Dine valgte møtesteder (${places.length}/${maxPlaces}) :`
+                : `Vos lieux enregistrés pour les tandems (${places.length}/${maxPlaces}) :`}
+            </span>
+            <span className="text-[11px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-medium">
+              ✓ {locale === 'no' ? 'Synlig på din profil' : 'Visible sur votre profil'}
+            </span>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {places.map((place, idx) => {
-              const placeQuery = place.address ? `${place.label}, ${place.address}` : `${place.label}, Oslo`;
+              const placeQuery = place.address
+                ? place.address.toLowerCase().includes(place.label.toLowerCase())
+                  ? place.address
+                  : `${place.label}, ${place.address}`
+                : `${place.label}, Oslo`;
               const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeQuery)}`;
               const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(placeQuery)}`;
 

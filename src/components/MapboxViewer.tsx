@@ -34,10 +34,15 @@ export const MapboxViewer: React.FC<MapboxViewerProps> = ({
   const getGoogleMapsQuery = (place?: PreferredPlace): string => {
     if (!place) return 'Oslo, Norway';
     if (place.address && place.address.trim()) {
+      if (place.address.toLowerCase().includes(place.label.toLowerCase())) {
+        return place.address;
+      }
       return `${place.label}, ${place.address}`;
     }
-    if (place.label && !place.label.toLowerCase().includes('oslo')) {
-      return `${place.label}, Oslo, Norway`;
+    if (place.label) {
+      return place.label.toLowerCase().includes('oslo') || place.label.toLowerCase().includes('norway')
+        ? place.label
+        : `${place.label}, Oslo, Norway`;
     }
     return `${place.latitude},${place.longitude}`;
   };

@@ -20,6 +20,7 @@ import {
 import { dataStore } from '../lib/supabase';
 import { UserProfile } from '../types';
 import { useTranslation } from '../lib/i18n';
+import { VIPPS_SECURITY_CONFIG, verifyVippsIntegrity } from '../config/vippsSecurity';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -28,9 +29,9 @@ interface PaymentModalProps {
   onSuccess: () => void;
 }
 
-export const VIPPS_TARGET_PHONE = '92131792';
-export const VIPPS_TARGET_FORMATTED = '92 13 17 92';
-export const VIPPS_AMOUNT_NOK = 39;
+export const VIPPS_TARGET_PHONE = VIPPS_SECURITY_CONFIG.phone;
+export const VIPPS_TARGET_FORMATTED = VIPPS_SECURITY_CONFIG.phoneFormatted;
+export const VIPPS_AMOUNT_NOK = VIPPS_SECURITY_CONFIG.amountNOK;
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
   isOpen,
@@ -376,9 +377,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   {/* Recipient Phone Row */}
                   <div className="p-3 bg-white rounded-xl border border-[#FFD9CD] shadow-xs flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-[#717A74] uppercase tracking-wider block font-semibold">
-                        {locale === 'no' ? 'Vipps mottakernummer' : 'Numéro Vipps destinataire'}
-                      </span>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] text-[#717A74] uppercase tracking-wider block font-semibold">
+                          {locale === 'no' ? 'Vipps mottakernummer' : 'Numéro Vipps destinataire'}
+                        </span>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-semibold">
+                          <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                          <span>{locale === 'no' ? 'Verifisert konto' : 'Compte certifié'}</span>
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="font-mono text-xl sm:text-2xl font-bold text-[#1F2421] tracking-wide">
                           {VIPPS_TARGET_FORMATTED}
@@ -387,6 +394,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           +47
                         </span>
                       </div>
+                      <span className="text-[11px] text-[#2E4A3D] font-medium block mt-1">
+                        👤 {VIPPS_SECURITY_CONFIG.beneficiary}
+                      </span>
                     </div>
 
                     <button

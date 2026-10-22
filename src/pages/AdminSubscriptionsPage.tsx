@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PageView, UserProfile } from '../types';
 import { dataStore, VippsPaymentRequest } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
+import { VIPPS_SECURITY_CONFIG } from '../config/vippsSecurity';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -360,7 +361,7 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#FF5B24] text-white">
-              Vipps 92 13 17 92
+              Vipps {VIPPS_SECURITY_CONFIG.phoneFormatted}
             </span>
             <span className="text-xs font-semibold text-[#2E4A3D]">
               {locale === 'no' ? 'Administrasjonspanel' : 'Gestionnaire des Souscriptions'}
