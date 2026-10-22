@@ -82,6 +82,17 @@ export interface UserProfile {
   derniere_activite: string; // ISO string
   lieux_preferes?: PreferredPlace[];
   created_at?: string;
+  newsletter_subscribed?: boolean;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  prenom?: string;
+  langue_maternelle?: string;
+  subscribed_at: string;
+  source: 'inscription_compte' | 'google_oauth' | 'social_oauth' | 'site_footer' | 'admin_import';
+  consent: boolean;
 }
 
 export interface Message {
@@ -101,3 +112,4 @@ export interface Conversation {
 }
 
 export type PageView = 'landing' | 'auth' | 'profile-create' | 'discovery' | 'messages' | 'settings' | 'admin';
+
