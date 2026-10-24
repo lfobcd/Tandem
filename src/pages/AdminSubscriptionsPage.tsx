@@ -26,7 +26,10 @@ import {
   UserX,
   CreditCard,
   Download,
+  Mail,
+  Copy,
 } from 'lucide-react';
+import { NewsletterSubscriber } from '../types';
 
 interface AdminSubscriptionsPageProps {
   currentUser: UserProfile | null;
@@ -56,8 +59,12 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
   );
 
   // Filters & Search
-  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'paid' | 'free'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'paid' | 'free' | 'newsletter'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>(() =>
+    dataStore.getNewsletterSubscribers()
+  );
+  const [copiedNewsletter, setCopiedNewsletter] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(
     null
   );
@@ -71,6 +78,7 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
   const reloadData = () => {
     setUsers(dataStore.adminGetAllUsers());
     setVippsRequests(dataStore.getVippsRequests());
+    setNewsletterSubscribers(dataStore.getNewsletterSubscribers());
     if (onRefreshData) onRefreshData();
   };
 
@@ -78,9 +86,11 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
     reloadData();
     const handleStorageUpdate = () => reloadData();
     window.addEventListener('tandem_profiles_updated', handleStorageUpdate);
+    window.addEventListener('tandem_newsletter_updated', handleStorageUpdate);
     window.addEventListener('storage', handleStorageUpdate);
     return () => {
       window.removeEventListener('tandem_profiles_updated', handleStorageUpdate);
+      window.removeEventListener('tandem_newsletter_updated', handleStorageUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
     };
   }, []);
@@ -117,6 +127,18 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
       return true;
     });
   }, [users, filterTab, searchQuery]);
+
+  // Filtered newsletter subscribers list
+  const filteredNewsletterSubscribers = useMemo(() => {
+    return newsletterSubscribers.filter((s) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      const matchEmail = (s.email || '').toLowerCase().includes(q);
+      const matchName = (s.prenom || '').toLowerCase().includes(q);
+      const matchSource = (s.source || '').toLowerCase().includes(q);
+      return matchEmail || matchName || matchSource;
+    });
+  }, [newsletterSubscribers, searchQuery]);
 
   // Action: Validate & Activate Vipps subscription
   const handleActivateUser = (userId: string, userName: string) => {
@@ -251,6 +273,43 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Action: Export newsletter subscribers to CSV (Mailchimp, Brevo, Substack compatible)
+  const handleExportNewsletterCSV = () => {
+    dataStore.exportNewsletterCSV();
+    setNotification({
+      message:
+        locale === 'no'
+          ? `Eksporterte ${newsletterSubscribers.length} nyhetsbrevabonnenter til CSV!`
+          : `Export de ${newsletterSubscribers.length} abonnés newsletter au format CSV réussi !`,
+      type: 'success',
+    });
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  // Action: Copy all newsletter subscriber emails to clipboard
+  const handleCopyAllNewsletterEmails = () => {
+    const emails = newsletterSubscribers.map((s) => s.email).filter(Boolean).join(', ');
+    if (!emails) {
+      setNotification({
+        message: locale === 'no' ? 'Ingen e-postadresser å kopiere.' : 'Aucune adresse email à copier.',
+        type: 'info',
+      });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    navigator.clipboard.writeText(emails);
+    setCopiedNewsletter(true);
+    setTimeout(() => setCopiedNewsletter(false), 3000);
+    setNotification({
+      message:
+        locale === 'no'
+          ? `${newsletterSubscribers.length} e-postadresser kopiert til utklippstavlen!`
+          : `${newsletterSubscribers.length} adresses email copiées dans le presse-papier !`,
+      type: 'success',
+    });
+    setTimeout(() => setNotification(null), 3500);
   };
 
   // Handle Passcode Unlock
@@ -395,7 +454,17 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
             title="Exporter la liste des souscriptions au format CSV"
           >
             <Download className="w-3.5 h-3.5 text-[#FF5B24]" />
-            <span>{locale === 'no' ? 'Eksporter CSV' : 'Exporter CSV'}</span>
+            <span>{locale === 'no' ? 'Vipps CSV' : 'Vipps CSV'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportNewsletterCSV}
+            className="px-3.5 py-2 bg-white border border-emerald-300 text-emerald-950 rounded-xl text-xs font-medium hover:bg-emerald-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            title="Exporter les abonnés newsletter au format CSV (Mailchimp, Brevo, Substack)"
+          >
+            <Mail className="w-3.5 h-3.5 text-emerald-700" />
+            <span>{locale === 'no' ? 'Nyhetsbrev CSV' : 'Newsletter CSV'}</span>
           </button>
 
           <button
@@ -417,7 +486,7 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Total Members */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E1D8] shadow-xs space-y-1">
           <div className="flex items-center justify-between text-xs text-[#717A74]">
@@ -480,7 +549,21 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
             {stats.revenueNOK} NOK
           </div>
           <p className="text-[11px] text-[#B83E15]">
-            {stats.paidUsers} × 39 kr {locale === 'no' ? 'engangssum' : 'cotisations uniques'}
+            {stats.paidUsers} × 39 kr {locale === 'no' ? 'engangssum' : 'cotisations'}
+          </p>
+        </div>
+
+        {/* Newsletter Subscribers KPI */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF8F5] border border-[#E5E1D8] shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-xs text-emerald-800 font-medium">
+            <span>{locale === 'no' ? 'Nyhetsbrev' : 'Base Newsletter'}</span>
+            <Mail className="w-4 h-4 text-emerald-700" />
+          </div>
+          <div className="font-display text-2xl sm:text-3xl font-bold text-[#2E4A3D]">
+            {newsletterSubscribers.length}
+          </div>
+          <p className="text-[11px] text-[#525E56]">
+            {locale === 'no' ? 'E-postadresser samlet inn' : 'Emails qualifiés récoltés'}
           </p>
         </div>
       </div>
@@ -572,6 +655,25 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
             >
               {locale === 'no' ? 'Ikke betalt (Gratis)' : 'Non payés'} ({stats.freeUsers})
             </button>
+
+            <button
+              onClick={() => setFilterTab('newsletter')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                filterTab === 'newsletter'
+                  ? 'bg-emerald-700 text-white shadow-2xs font-semibold'
+                  : 'text-emerald-900 hover:text-emerald-950 hover:bg-emerald-100/50'
+              }`}
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>{locale === 'no' ? 'Nyhetsbrev' : 'Base Newsletter'}</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  filterTab === 'newsletter' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                }`}
+              >
+                {newsletterSubscribers.length}
+              </span>
+            </button>
           </div>
 
           {/* Search Box */}
@@ -582,7 +684,11 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={
-                locale === 'no'
+                filterTab === 'newsletter'
+                  ? locale === 'no'
+                    ? 'Søk e-post, fornavn...'
+                    : 'Rechercher email, prénom...'
+                  : locale === 'no'
                   ? 'Søk navn, e-post, tlf...'
                   : 'Rechercher nom, email, tél...'
               }
@@ -591,198 +697,339 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
           </div>
         </div>
 
-        {/* Users Management Table */}
-        <div className="bg-white rounded-3xl border border-[#E5E1D8] shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#FAF8F5] border-b border-[#E5E1D8] text-[11px] font-semibold text-[#717A74] uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Utilisateur</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4">Statut Vipps / Paiement</th>
-                  <th className="py-3 px-4">Téléphone Vipps</th>
-                  <th className="py-3 px-4">Date de demande</th>
-                  <th className="py-3 px-4 text-right">Actions Gestionnaire</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F0ECE1]">
-                {filteredUsers.length === 0 ? (
+        {/* Conditional Rendering: Newsletter Subscribers Table vs Users/Payment Table */}
+        {filterTab === 'newsletter' ? (
+          <div className="bg-white rounded-3xl border border-[#E5E1D8] shadow-xs overflow-hidden space-y-0">
+            {/* Newsletter Control Bar */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50/60 to-white border-b border-[#E5E1D8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                  <h3 className="font-semibold text-sm text-[#1F2421]">
+                    {locale === 'no'
+                      ? 'Nyhetsbrevabonnenter (Tandem Oslo)'
+                      : 'Base de contacts Newsletter & Événements Tandem'}
+                  </h3>
+                </div>
+                <p className="text-xs text-[#525E56] mt-0.5">
+                  {locale === 'no'
+                    ? 'E-postadresser samlet inn ved registrering med samtykke. Klar til eksport for Mailchimp, Brevo eller Substack.'
+                    : 'Adresses récoltées avec consentement RGPD lors de l\'inscription ou via le site. Prêt pour import Mailchimp, Brevo ou Substack.'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCopyAllNewsletterEmails}
+                  className="px-3 py-1.5 bg-white border border-[#E5E1D8] text-[#1F2421] rounded-xl text-xs font-medium hover:bg-[#FAF8F5] transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="Copier toutes les adresses séparées par des virgules"
+                >
+                  {copiedNewsletter ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700 font-semibold">Copié !</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#525E56]" />
+                      <span>{locale === 'no' ? 'Kopier alle' : 'Copier tous les emails'}</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportNewsletterCSV}
+                  className="px-3.5 py-1.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{locale === 'no' ? 'Last ned CSV' : 'Télécharger CSV'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Newsletter Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAF8F5] border-b border-[#E5E1D8] text-[11px] font-semibold text-[#717A74] uppercase tracking-wider">
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-xs text-[#717A74]">
-                      {locale === 'no'
-                        ? 'Ingen profiler matcher dette filteret.'
-                        : 'Aucun utilisateur ne correspond à ce filtre.'}
-                    </td>
+                    <th className="py-3 px-4">Adresse Email</th>
+                    <th className="py-3 px-4">Prénom</th>
+                    <th className="py-3 px-4">Langue</th>
+                    <th className="py-3 px-4">Source</th>
+                    <th className="py-3 px-4">Date d'inscription</th>
+                    <th className="py-3 px-4 text-right">Consentement RGPD</th>
                   </tr>
-                ) : (
-                  filteredUsers.map((user) => {
-                    const isPaid = user.a_paye;
-                    const isPending = !isPaid && user.vipps_status === 'pending';
-
-                    return (
-                      <tr
-                        key={user.id}
-                        className={`hover:bg-[#FAF8F5] transition-colors ${
-                          isPending ? 'bg-amber-50/30' : ''
-                        }`}
-                      >
-                        {/* User Identity */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-[#EAE5DC] text-[#2E4A3D] font-display text-sm font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
-                              {user.photo_url ? (
-                                <img
-                                  src={user.photo_url}
-                                  alt={user.prenom}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                user.prenom.charAt(0)
-                              )}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-[#1F2421] flex items-center gap-1.5 flex-wrap">
-                                <span>{user.prenom}</span>
-                                {user.is_admin && (
-                                  <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.2 rounded">
-                                    Gestionnaire
-                                  </span>
-                                )}
-                                {user.is_factice && (
-                                  <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                                    Démo
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[11px] text-[#717A74] block">
-                                {user.quartier || 'Oslo'} · {user.langue_maternelle === 'français' ? '🇫🇷 FR' : '🇳🇴 NO'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Email */}
-                        <td className="py-3.5 px-4 font-mono text-[11px] text-[#525E56]">
-                          {user.email || '—'}
-                        </td>
-
-                        {/* Payment Status Badge */}
-                        <td className="py-3.5 px-4">
-                          {isPaid ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>{locale === 'no' ? 'Aktiv (39 kr)' : 'Payé (Actif · 39 NOK)'}</span>
-                            </span>
-                          ) : isPending ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                              <Clock className="w-3.5 h-3.5 text-amber-600" />
-                              <span>{locale === 'no' ? 'Venter Vipps-validering' : 'Vipps en attente'}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0ECE1] text-[#717A74]">
-                              <span>{locale === 'no' ? 'Gratis (Ikke betalt)' : 'Non payé (Gratuit)'}</span>
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Vipps Phone */}
-                        <td className="py-3.5 px-4 font-mono text-xs">
-                          {user.vipps_phone ? (
-                            <span className="text-[#1F2421] font-semibold flex items-center gap-1">
-                              <Smartphone className="w-3.5 h-3.5 text-[#FF5B24]" />
-                              <span>{user.vipps_phone}</span>
-                            </span>
-                          ) : (
-                            <span className="text-[#8C938E] text-[11px]">Non spécifié</span>
-                          )}
-                        </td>
-
-                        {/* Request Date */}
-                        <td className="py-3.5 px-4 text-[11px] text-[#717A74]">
-                          {user.vipps_requested_at
-                            ? new Date(user.vipps_requested_at).toLocaleDateString(
-                                locale === 'no' ? 'nb-NO' : 'fr-FR',
-                                { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }
-                              )
-                            : user.derniere_activite
-                            ? new Date(user.derniere_activite).toLocaleDateString(
-                                locale === 'no' ? 'nb-NO' : 'fr-FR',
-                                { day: '2-digit', month: 'short' }
-                              )
-                            : '—'}
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                            {/* Option to simulate Vipps reception for testing */}
-                            {!isPaid && !isPending && (
-                              <button
-                                type="button"
-                                onClick={() => handleSimulatePendingVipps(user.id, user.prenom)}
-                                className="px-2 py-1 text-[10px] text-[#FF5B24] bg-[#FFF4F0] hover:bg-[#FFE8E0] border border-[#FFD0C0] rounded-lg transition-colors cursor-pointer"
-                                title="Simuler l'envoi de 39 kr par Vipps pour ce profil (test)"
-                              >
-                                {locale === 'no' ? 'Simuler Vipps' : 'Simuler Vipps'}
-                              </button>
-                            )}
-
-                            {!isPaid ? (
-                              <button
-                                type="button"
-                                onClick={() => handleActivateUser(user.id, user.prenom)}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
-                                  isPending
-                                    ? 'bg-[#FF5B24] hover:bg-[#E54A15] text-white ring-2 ring-orange-400/50'
-                                    : 'bg-[#2E4A3D] hover:bg-[#23382E] text-white'
-                                }`}
-                                title="Valider le paiement Vipps et activer l'accès illimité"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                <span>
-                                  {isPending
-                                    ? locale === 'no'
-                                      ? 'Godkjenn Vipps (39 kr)'
-                                      : 'Valider Vipps (39 kr)'
-                                    : locale === 'no'
-                                    ? 'Aktiver (39 kr)'
-                                    : 'Activer (39 kr)'}
-                                </span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleDeactivateUser(user.id, user.prenom)}
-                                className="px-2.5 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-200"
-                                title="Désactiver et repasser en accès gratuit"
-                              >
-                                {locale === 'no' ? 'Deaktiver' : 'Désactiver'}
-                              </button>
-                            )}
-
-                            {/* Manager Admin Role Toggle */}
+                </thead>
+                <tbody className="divide-y divide-[#F0ECE1]">
+                  {filteredNewsletterSubscribers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-xs text-[#717A74]">
+                        <Mail className="w-8 h-8 text-[#8C938E] mx-auto mb-2 opacity-50" />
+                        <p className="font-medium text-[#1F2421]">
+                          {locale === 'no' ? 'Ingen abonnenter funnet' : 'Aucun abonné trouvé'}
+                        </p>
+                        <p className="text-[11px] text-[#8C938E] mt-0.5">
+                          {locale === 'no'
+                            ? 'Nye medlemmer som godtar nyhetsbrevet vil vises her.'
+                            : 'Les nouveaux membres qui acceptent la newsletter apparaîtront automatiquement ici.'}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredNewsletterSubscribers.map((subscriber, idx) => (
+                      <tr key={subscriber.email + idx} className="hover:bg-[#FAF8F5] transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-medium text-[#1F2421]">
+                          <div className="flex items-center gap-2">
+                            <span>{subscriber.email}</span>
                             <button
                               type="button"
-                              onClick={() => handleToggleAdminUser(user.id, Boolean(user.is_admin), user.prenom)}
-                              className={`p-1.5 rounded-lg border text-xs transition-colors cursor-pointer ${
-                                user.is_admin
-                                  ? 'bg-[#E8EDE6] text-[#2E4A3D] border-[#C5D7C9]'
-                                  : 'text-[#8C938E] hover:text-[#1F2421] border-transparent hover:border-[#E5E1D8]'
-                              }`}
-                              title={user.is_admin ? 'Retirer les droits gestionnaire' : 'Nommer gestionnaire admin'}
+                              onClick={() => {
+                                navigator.clipboard.writeText(subscriber.email);
+                                setNotification({
+                                  message: `${subscriber.email} copié !`,
+                                  type: 'success',
+                                });
+                                setTimeout(() => setNotification(null), 2000);
+                              }}
+                              className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer rounded"
+                              title="Copier cet email"
                             >
-                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <Copy className="w-3 h-3" />
                             </button>
                           </div>
                         </td>
+                        <td className="py-3.5 px-4 font-medium text-[#1F2421]">
+                          {subscriber.prenom || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-[11px]">
+                          <span className="px-2 py-0.5 rounded-md bg-[#FAF8F5] border border-[#E5E1D8] text-[#525E56]">
+                            {subscriber.langue === 'fr'
+                              ? '🇫🇷 Français'
+                              : subscriber.langue === 'no'
+                              ? '🇳🇴 Norsk'
+                              : subscriber.langue || '—'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-[11px] text-[#717A74]">
+                          <span className="capitalize">{subscriber.source || 'Inscription'}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-[11px] text-[#717A74]">
+                          {subscriber.date_inscription
+                            ? new Date(subscriber.date_inscription).toLocaleDateString(
+                                locale === 'no' ? 'nb-NO' : 'fr-FR',
+                                { day: '2-digit', month: 'short', year: 'numeric' }
+                              )
+                            : '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Opt-in actif</span>
+                          </span>
+                        </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Users Management Table */
+          <div className="bg-white rounded-3xl border border-[#E5E1D8] shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAF8F5] border-b border-[#E5E1D8] text-[11px] font-semibold text-[#717A74] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Utilisateur</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Statut Vipps / Paiement</th>
+                    <th className="py-3 px-4">Téléphone Vipps</th>
+                    <th className="py-3 px-4">Date de demande</th>
+                    <th className="py-3 px-4 text-right">Actions Gestionnaire</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F0ECE1]">
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-xs text-[#717A74]">
+                        {locale === 'no'
+                          ? 'Ingen profiler matcher dette filteret.'
+                          : 'Aucun utilisateur ne correspond à ce filtre.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((user) => {
+                      const isPaid = user.a_paye;
+                      const isPending = !isPaid && user.vipps_status === 'pending';
+
+                      return (
+                        <tr
+                          key={user.id}
+                          className={`hover:bg-[#FAF8F5] transition-colors ${
+                            isPending ? 'bg-amber-50/30' : ''
+                          }`}
+                        >
+                          {/* User Identity */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-[#EAE5DC] text-[#2E4A3D] font-display text-sm font-semibold flex items-center justify-center overflow-hidden border border-[#E5E1D8] shrink-0">
+                                {user.photo_url ? (
+                                  <img
+                                    src={user.photo_url}
+                                    alt={user.prenom}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  user.prenom.charAt(0)
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-[#1F2421] flex items-center gap-1.5 flex-wrap">
+                                  <span>{user.prenom}</span>
+                                  {user.is_admin && (
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.2 rounded">
+                                      Gestionnaire
+                                    </span>
+                                  )}
+                                  {user.is_factice && (
+                                    <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                                      Démo
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[11px] text-[#717A74] block">
+                                  {user.quartier || 'Oslo'} · {user.langue_maternelle === 'français' ? '🇫🇷 FR' : '🇳🇴 NO'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Email */}
+                          <td className="py-3.5 px-4 font-mono text-[11px] text-[#525E56]">
+                            {user.email || '—'}
+                          </td>
+
+                          {/* Payment Status Badge */}
+                          <td className="py-3.5 px-4">
+                            {isPaid ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{locale === 'no' ? 'Aktiv (39 kr)' : 'Payé (Actif · 39 NOK)'}</span>
+                              </span>
+                            ) : isPending ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>{locale === 'no' ? 'Venter Vipps-validering' : 'Vipps en attente'}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0ECE1] text-[#717A74]">
+                                <span>{locale === 'no' ? 'Gratis (Ikke betalt)' : 'Non payé (Gratuit)'}</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Vipps Phone */}
+                          <td className="py-3.5 px-4 font-mono text-xs">
+                            {user.vipps_phone ? (
+                              <span className="text-[#1F2421] font-semibold flex items-center gap-1">
+                                <Smartphone className="w-3.5 h-3.5 text-[#FF5B24]" />
+                                <span>{user.vipps_phone}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[#8C938E] text-[11px]">Non spécifié</span>
+                            )}
+                          </td>
+
+                          {/* Request Date */}
+                          <td className="py-3.5 px-4 text-[11px] text-[#717A74]">
+                            {user.vipps_requested_at
+                              ? new Date(user.vipps_requested_at).toLocaleDateString(
+                                  locale === 'no' ? 'nb-NO' : 'fr-FR',
+                                  { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }
+                                )
+                              : user.derniere_activite
+                              ? new Date(user.derniere_activite).toLocaleDateString(
+                                  locale === 'no' ? 'nb-NO' : 'fr-FR',
+                                  { day: '2-digit', month: 'short' }
+                                )
+                              : '—'}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {/* Option to simulate Vipps reception for testing */}
+                              {!isPaid && !isPending && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSimulatePendingVipps(user.id, user.prenom)}
+                                  className="px-2 py-1 text-[10px] text-[#FF5B24] bg-[#FFF4F0] hover:bg-[#FFE8E0] border border-[#FFD0C0] rounded-lg transition-colors cursor-pointer"
+                                  title="Simuler l'envoi de 39 kr par Vipps pour ce profil (test)"
+                                >
+                                  {locale === 'no' ? 'Simuler Vipps' : 'Simuler Vipps'}
+                                </button>
+                              )}
+
+                              {!isPaid ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleActivateUser(user.id, user.prenom)}
+                                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                                    isPending
+                                      ? 'bg-[#FF5B24] hover:bg-[#E54A15] text-white ring-2 ring-orange-400/50'
+                                      : 'bg-[#2E4A3D] hover:bg-[#23382E] text-white'
+                                  }`}
+                                  title="Valider le paiement Vipps et activer l'accès illimité"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>
+                                    {isPending
+                                      ? locale === 'no'
+                                        ? 'Godkjenn Vipps (39 kr)'
+                                        : 'Valider Vipps (39 kr)'
+                                      : locale === 'no'
+                                      ? 'Aktiver (39 kr)'
+                                      : 'Activer (39 kr)'}
+                                  </span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeactivateUser(user.id, user.prenom)}
+                                  className="px-2.5 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-200"
+                                  title="Désactiver et repasser en accès gratuit"
+                                >
+                                  {locale === 'no' ? 'Deaktiver' : 'Désactiver'}
+                                </button>
+                              )}
+
+                              {/* Manager Admin Role Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAdminUser(user.id, Boolean(user.is_admin), user.prenom)}
+                                className={`p-1.5 rounded-lg border text-xs transition-colors cursor-pointer ${
+                                  user.is_admin
+                                    ? 'bg-[#E8EDE6] text-[#2E4A3D] border-[#C5D7C9]'
+                                    : 'text-[#8C938E] hover:text-[#1F2421] border-transparent hover:border-[#E5E1D8]'
+                                }`}
+                                title={user.is_admin ? 'Retirer les droits gestionnaire' : 'Nommer gestionnaire admin'}
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Manual Activation Modal */}

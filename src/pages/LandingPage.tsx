@@ -17,6 +17,8 @@ import {
   Flame,
   Gift,
   Award,
+  Mail,
+  Check,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -36,8 +38,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const { t, locale } = useTranslation();
   const [memberFilter, setMemberFilter] = useState<'all' | 'fr' | 'no'>('all');
+  const [visitorEmail, setVisitorEmail] = useState('');
+  const [visitorNewsletterDone, setVisitorNewsletterDone] = useState(false);
 
-  // Dynamic Beta Pioneer stats (first 50 users free offer countdown)
+  const handleVisitorNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!visitorEmail || !visitorEmail.includes('@')) return;
+    dataStore.subscribeNewsletter(
+      visitorEmail,
+      '',
+      locale === 'no' ? 'no' : 'fr',
+      'visiteur_landing'
+    );
+    setVisitorNewsletterDone(true);
+    setVisitorEmail('');
+  };
+
+  // Dynamic Beta Pioneer stats (first month free launch offer countdown)
   const betaStats = useMemo(() => {
     return dataStore.getBetaPioneerStats(profiles.length);
   }, [profiles]);
@@ -132,35 +149,35 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
 
-            {/* Beta Launch 50 Spots Countdown Banner */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/95 via-[#FFFDF8] to-orange-50/80 border-2 border-amber-300 shadow-xs space-y-3">
+            {/* Official Launch Month 100% Free Offer Banner */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-[#FFFDF8] to-amber-50/80 border-2 border-emerald-300 shadow-xs space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#FF5B24] text-white shadow-xs shrink-0">
-                    <Flame className="w-4 h-4 animate-pulse" />
+                  <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#2E4A3D] text-white shadow-xs shrink-0">
+                    <Flame className="w-4 h-4 text-amber-300 animate-pulse" />
                   </span>
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-bold text-[#1F2421] tracking-wide uppercase">
-                        {locale === 'no' ? 'Offisiell Beta-lansering' : 'Lancement Version Bêta'}
+                        {locale === 'no' ? 'Offisiell lansering i Oslo' : 'Lancement Officiel à Oslo'}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FF5B24] text-white">
-                        {locale === 'no' ? '0 kr for de 50 første' : '100% GRATUIT pour les 50 premiers'}
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-700 text-white">
+                        {locale === 'no' ? '1. MÅNED 100% GRATIS' : '1ER MOIS 100% GRATUIT'}
                       </span>
                     </div>
                     <span className="text-xs text-[#525E56] font-medium block">
                       {locale === 'no'
-                        ? 'De 50 første som registrerer seg får full livslang tilgang helt gratis!'
-                        : 'Accès illimité et messagerie offerts à vie (au lieu de la souscription 39 NOK)'}
+                        ? 'Alle som registrerer seg denne måneden får full tilgang til meldinger helt gratis (0 kr i stedet for 39 kr)!'
+                        : 'Accès illimité et messagerie offerts pour tous les membres inscrits ce mois-ci (0 NOK au lieu de 39 NOK)'}
                     </span>
                   </div>
                 </div>
-                <div className="bg-white/95 border border-amber-300 px-3 py-1.5 rounded-xl shadow-2xs text-right">
+                <div className="bg-white/95 border border-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xs text-right">
                   <span className="text-[10px] uppercase font-bold text-[#717A74] block">
-                    {locale === 'no' ? 'Gjenstående plasser' : 'Places gratuites'}
+                    {locale === 'no' ? 'Tilbudet varer i' : 'Durée restante'}
                   </span>
-                  <span className="font-display text-base font-bold text-[#FF5B24]">
-                    {betaStats.remainingSpots} / {betaStats.maxSpots}
+                  <span className="font-display text-base font-bold text-emerald-700">
+                    {betaStats.daysRemaining} {locale === 'no' ? 'dager' : 'jours'}
                   </span>
                 </div>
               </div>
@@ -169,18 +186,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-medium text-[#1F2421]">
                   <span>
-                    🔥 <strong>{betaStats.registeredCount}</strong> sur <strong>{betaStats.maxSpots}</strong> places réservées
+                    🎉 <strong>{betaStats.registeredCount} membres</strong> déjà inscrits pour échanger à Oslo
                   </span>
                   <span className="text-xs font-bold text-[#2E4A3D]">
                     {locale === 'no'
-                      ? `Kun ${betaStats.remainingSpots} gratisplasser igjen !`
-                      : `Plus que ${betaStats.remainingSpots} places gratuites !`}
+                      ? `Gratis lanseringsperiode: ${betaStats.daysRemaining} dager igjen !`
+                      : `Mois de lancement : encore ${betaStats.daysRemaining} jours gratuits !`}
                   </span>
                 </div>
-                <div className="w-full h-3 bg-amber-100 rounded-full overflow-hidden p-0.5 border border-amber-200">
+                <div className="w-full h-3 bg-emerald-100 rounded-full overflow-hidden p-0.5 border border-emerald-200">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-500 via-[#FF5B24] to-emerald-600 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
+                    className="h-full bg-gradient-to-r from-emerald-500 via-[#2E4A3D] to-amber-500 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(15, betaStats.progressPercent))}%` }}
                   />
                 </div>
               </div>
@@ -649,22 +666,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </button>
             </div>
 
-            {/* Plan 2: Beta Launch Free 50 Spots Offer / Lifetime Access */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFBF9] border-2 border-[#FF5B24] flex flex-col justify-between space-y-6 relative shadow-md">
-              <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-[#FF5B24] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs flex items-center gap-1">
-                <Flame className="w-3 h-3" />
+            {/* Plan 2: Official Launch Month Free Offer / Full Access */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#F6FAF7] border-2 border-[#2E4A3D] flex flex-col justify-between space-y-6 relative shadow-md">
+              <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider shadow-xs flex items-center gap-1">
+                <Flame className="w-3 h-3 text-amber-300" />
                 <span>
                   {betaStats.isFreeOfferActive
-                    ? (locale === 'no' ? 'Lanseringstilbud · 0 kr' : 'Offre Bêta 0 NOK · 50 premiers')
+                    ? (locale === 'no' ? 'Lanseringstilbud · 0 kr' : '1er mois de lancement · 0 NOK')
                     : (locale === 'no' ? 'Anbefalt · Ubegrenset' : 'Accès illimité · Recommandé')}
                 </span>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#FF5B24] uppercase tracking-wider">
+                  <span className="text-xs font-semibold text-[#2E4A3D] uppercase tracking-wider">
                     {betaStats.isFreeOfferActive
-                      ? (locale === 'no' ? 'Pioner-tilgang (Beta)' : 'Statut Membre Pionnier Bêta')
+                      ? (locale === 'no' ? 'Lanseringsmedlemskap' : 'Statut Membre Pionnier Lancement')
                       : (locale === 'no' ? 'Full tilgang (Vipps)' : 'Souscription unique')}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
@@ -678,7 +695,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <>
                         <span className="font-display text-3xl sm:text-4xl font-bold text-emerald-700">0 NOK</span>
                         <span className="text-sm text-neutral-400 line-through font-medium">39 NOK</span>
-                        <span className="text-xs text-[#717A74]">/ {locale === 'no' ? 'gratis for alltid' : 'gratuit à vie'}</span>
+                        <span className="text-xs text-[#717A74]">/ {locale === 'no' ? 'gratis i lanseringsmåneden' : 'gratuit pendant le mois de lancement'}</span>
                       </>
                     ) : (
                       <>
@@ -690,30 +707,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <span className="text-xs text-[#717A74] block">
                     {betaStats.isFreeOfferActive
                       ? (locale === 'no'
-                          ? 'Tilbudet gjelder automatisk de 50 første som oppretter konto!'
-                          : 'Offre exclusive réservée aux 50 premiers inscrits sur la version Bêta !')
+                          ? 'Tilbudet gjelder automatisk for alle som oppretter profil denne måneden!'
+                          : 'Offre exclusive : gratuité totale pour tous les nouveaux inscrits ce mois-ci !')
                       : (locale === 'no' ? 'Prisen på en kaffe i Oslo · Ingen binding' : "Le prix d'un café à Oslo · Accès à vie")}
                   </span>
                 </div>
 
-                {/* Mini countdown bar in pricing card */}
+                {/* Launch month banner in pricing card */}
                 {betaStats.isFreeOfferActive && (
-                  <div className="p-3 bg-amber-50/90 rounded-2xl border border-amber-200/90 space-y-1.5">
+                  <div className="p-3 bg-emerald-50/90 rounded-2xl border border-emerald-200/90 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-[#1F2421]">
                       <span className="flex items-center gap-1">
-                        <Flame className="w-3.5 h-3.5 text-[#FF5B24]" />
-                        <span>{betaStats.registeredCount} / {betaStats.maxSpots} places réservées</span>
+                        <Flame className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{locale === 'no' ? 'Lanseringsperiode pågår' : 'Mois de lancement en cours'}</span>
                       </span>
-                      <span className="text-[#FF5B24]">
+                      <span className="text-emerald-800 font-bold">
                         {locale === 'no'
-                          ? `Kun ${betaStats.remainingSpots} igjen!`
-                          : `Plus que ${betaStats.remainingSpots} gratuites !`}
+                          ? `Ennå ${betaStats.daysRemaining} dager igjen !`
+                          : `Encore ${betaStats.daysRemaining} jours gratuits !`}
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-amber-200/80 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-emerald-200/80 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-amber-500 to-[#FF5B24] rounded-full"
-                        style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
+                        className="h-full bg-gradient-to-r from-emerald-500 to-[#2E4A3D] rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(15, betaStats.progressPercent))}%` }}
                       />
                     </div>
                   </div>
@@ -721,31 +738,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
                 <ul className="space-y-2.5 text-xs text-[#1F2421] pt-2">
                   <li className="flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#2E4A3D] shrink-0" />
                     <span>{locale === 'no' ? 'Alt i gratis medlemskap inkludert' : 'Tout ce qui est inclus dans le compte gratuit'}</span>
                   </li>
                   <li className="flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#2E4A3D] shrink-0" />
                     <span>{locale === 'no' ? 'Send ubegrenset med meldinger til alle tandems' : 'Messages illimités vers tous les profils'}</span>
                   </li>
                   <li className="flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#2E4A3D] shrink-0" />
                     <span>
                       {betaStats.isFreeOfferActive
                         ? (locale === 'no'
-                            ? 'Ingen betaling eller Vipps kreves for de 50 første'
-                            : 'Aucun paiement ni Vipps requis pour les 50 premiers (0 NOK)')
+                            ? 'Ingen betaling eller Vipps kreves under lanseringsmåneden (0 kr)'
+                            : 'Aucun paiement ni Vipps requis pendant le mois de lancement (0 NOK)')
                         : (locale === 'no'
                             ? 'Direkte betaling med Vipps til 92 13 17 92 eller kort'
                             : 'Paiement direct Vipps (92 13 17 92) ou Carte')}
                     </span>
                   </li>
                   <li className="flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF5B24] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#2E4A3D] shrink-0" />
                     <span>
                       {locale === 'no'
                         ? 'Spesielt «Pioner»-merke på profilen din'
-                        : 'Badge Membre Pionnier Bêta sur votre profil'}
+                        : 'Badge Membre Pionnier Lancement sur votre profil'}
                     </span>
                   </li>
                 </ul>
@@ -774,8 +791,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <>
                     <span>
                       {locale === 'no'
-                        ? `Bli med nå gratis (${betaStats.remainingSpots} plasser igjen)`
-                        : `Profiter de la gratuité Bêta (${betaStats.remainingSpots} places restantes)`}
+                        ? `Bli med nå – 1. måned 100% gratis (${betaStats.daysRemaining} dager igjen)`
+                        : `Profiter du 1er mois 100% gratuit (${betaStats.daysRemaining} jours restants)`}
                     </span>
                     <ArrowRight className="w-4 h-4" />
                   </>
@@ -801,6 +818,58 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* FAQ & Tandem Guide Section */}
       <FaqSection onNavigate={onNavigate} currentUser={currentUser} />
+
+      {/* Visitor Newsletter Subscription Box */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#E5E1D8] shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-1.5 text-center md:text-left max-w-md">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
+              <Mail className="w-3 h-3 text-emerald-700" />
+              <span>{locale === 'no' ? 'Nyhetsbrev & Tandem-kafeer' : 'Newsletter & Événements'}</span>
+            </div>
+            <h3 className="font-display text-xl font-medium text-[#1F2421]">
+              {locale === 'no'
+                ? 'Få invitasjoner til neste språkmøter i Oslo'
+                : 'Recevez les prochains rendez-vous tandem à Oslo'}
+            </h3>
+            <p className="text-xs text-[#525E56] leading-relaxed">
+              {locale === 'no'
+                ? 'Motta tips om fransk/norsk språkutveksling, kafe-treff og aktiviteter. Ingen spam, meld deg av når som helst.'
+                : 'Soirées apéro-tandem, cafés de conversation et astuces bilingues. Pas de spam, désinscription en un clic.'}
+            </p>
+          </div>
+
+          <div className="w-full md:w-auto shrink-0">
+            {visitorNewsletterDone ? (
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-300 flex items-center gap-3 text-xs text-emerald-950 font-medium">
+                <Check className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>
+                  {locale === 'no'
+                    ? 'Takk for din påmelding! Du er nå registrert.'
+                    : 'Merci ! Votre email a été bien enregistré pour les prochaines invitations.'}
+                </span>
+              </div>
+            ) : (
+              <form onSubmit={handleVisitorNewsletterSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <input
+                  type="email"
+                  required
+                  value={visitorEmail}
+                  onChange={(e) => setVisitorEmail(e.target.value)}
+                  placeholder={locale === 'no' ? 'din.epost@eksempel.no' : 'votre.email@exemple.com'}
+                  className="px-4 py-2.5 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] min-w-[240px]"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-xl transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                >
+                  {locale === 'no' ? 'Hold meg oppdatert' : 'Je m\'inscris'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Warm Scandinavian CTA Banner */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6">

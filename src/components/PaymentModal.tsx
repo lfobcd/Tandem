@@ -240,8 +240,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <Sparkles className="w-8 h-8" />
             </div>
             <div className="space-y-2">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                {locale === 'no' ? '🔥 Pioner-tilgang aktiv (0 kr)' : '🔥 Accès Pionnier Bêta Actif (0 NOK)'}
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                {locale === 'no' ? '🎉 Lanseringstilbud aktivt (0 kr)' : '🎉 Offre 1er Mois de Lancement Actif (0 NOK)'}
               </span>
               <h3 className="font-display text-2xl font-normal text-[#1F2421]">
                 {locale === 'no'
@@ -250,8 +250,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </h3>
               <p className="text-xs sm:text-sm text-[#525E56] max-w-sm mx-auto leading-relaxed">
                 {locale === 'no'
-                  ? 'Kontoen din er en av de 50 første registrert under lanseringen. Du kan kontakte alle partnere helt gratis uten å betale!'
-                  : 'Votre profil bénéficie de l’offre Bêta gratuite réservée aux 50 premiers membres. La messagerie et toutes les fonctionnalités sont débloquées à vie !'}
+                  ? 'Kontoen din er registrert i den første lanseringsmåneden. Du kan kontakte alle partnere helt gratis uten å betale!'
+                  : 'Votre profil bénéficie de l’offre du premier mois de lancement. La messagerie et toutes les fonctionnalités sont débloquées gratuitement à vie !'}
               </p>
             </div>
             <div className="pt-2 flex justify-center">

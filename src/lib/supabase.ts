@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { UserProfile, PreferredPlace, Message, Conversation } from '../types';
+import { UserProfile, PreferredPlace, Message, Conversation, NewsletterSubscriber } from '../types';
 import { INITIAL_PROFILES, INITIAL_CONVERSATIONS, INITIAL_MESSAGES } from '../data/mockData';
 import { VIPPS_SECURITY_CONFIG } from '../config/vippsSecurity';
 
@@ -134,7 +134,7 @@ export const supabaseAuth = {
     }
 
     const isManagerAccount = targetEmail.toLowerCase() === 'bcdlfo@gmail.com';
-    const isBetaFree = accounts.length < 50;
+    const isLaunchFree = dataStore.getLaunchOfferStats().isLaunchMonthActive;
 
     // Otherwise create brand new user profile
     const newUser: UserProfile = {
@@ -160,11 +160,12 @@ export const supabaseAuth = {
             targetLang === 'français' ? 'norvégien' : 'français'
           } avec Tandem !`,
       photo_url: targetPhoto,
-      a_paye: isManagerAccount ? true : (isBetaFree ? true : false),
-      is_beta_pioneer: isBetaFree ? true : undefined,
-      beta_rank: isBetaFree ? accounts.length + 1 : undefined,
+      a_paye: isManagerAccount ? true : (isLaunchFree ? true : false),
+      is_beta_pioneer: isLaunchFree ? true : undefined,
+      beta_rank: accounts.length + 1,
       is_admin: isManagerAccount ? true : undefined,
       derniere_activite: new Date().toISOString(),
+      newsletter_subscribed: true,
       lieux_preferes: [
         {
           id: `place_${provider}_${Date.now()}`,
@@ -176,6 +177,15 @@ export const supabaseAuth = {
         },
       ],
     };
+
+    // Auto-collect email for the future newsletter
+    dataStore.subscribeNewsletter({
+      email: targetEmail,
+      prenom: targetPrenom,
+      langue_maternelle: targetLang,
+      source: provider === 'google' ? 'google_oauth' : 'social_oauth',
+      consent: true,
+    });
 
     const newAccount: UserAccount = {
       email: targetEmail,
@@ -239,17 +249,62 @@ const STORAGE_KEYS = {
   MAPBOX_TOKEN: 'tandem_mapbox_token_v3',
   EXPLICIT_LOGIN: 'tandem_user_logged_in_v4',
   VIPPS_REQUESTS: 'tandem_vipps_requests_v1',
+  NEWSLETTER_SUBSCRIBERS: 'tandem_newsletter_subscribers_v1',
+  LAUNCH_START_DATE: 'tandem_launch_start_date_v1',
 };
 
-export const BETA_MAX_FREE_SPOTS = 50;
+export const LAUNCH_MONTH_TOTAL_DAYS = 30;
 
-export interface BetaPioneerStats {
-  maxSpots: number;
-  registeredCount: number;
-  remainingSpots: number;
-  isFreeOfferActive: boolean;
+export interface LaunchOfferStats {
+  isLaunchMonthActive: boolean;
+  daysRemaining: number;
+  totalDays: number;
+  daysElapsed: number;
   progressPercent: number;
+  registeredCount: number;
+  isFreeOfferActive: boolean;
+  offerTitleFr: string;
+  offerTitleNo: string;
+  offerSubtitleFr: string;
+  offerSubtitleNo: string;
+  // Backward compatibility fields
+  maxSpots: number;
+  remainingSpots: number;
 }
+
+export type BetaPioneerStats = LaunchOfferStats;
+
+export const computeLaunchOfferStats = (profilesCount?: number): LaunchOfferStats => {
+  let startDateStr = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.LAUNCH_START_DATE) : null;
+  if (!startDateStr && typeof window !== 'undefined') {
+    startDateStr = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEYS.LAUNCH_START_DATE, startDateStr);
+  }
+
+  const startDate = startDateStr ? new Date(startDateStr) : new Date();
+  const now = new Date();
+  const diffTime = Math.max(0, now.getTime() - startDate.getTime());
+  const daysElapsed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const totalDays = LAUNCH_MONTH_TOTAL_DAYS;
+  const daysRemaining = Math.max(1, totalDays - daysElapsed);
+  const isLaunchMonthActive = daysRemaining > 0;
+
+  return {
+    isLaunchMonthActive,
+    isFreeOfferActive: isLaunchMonthActive,
+    daysRemaining,
+    totalDays,
+    daysElapsed,
+    registeredCount: profilesCount || 0,
+    progressPercent: Math.round(((totalDays - daysRemaining) / totalDays) * 100),
+    offerTitleFr: '1er mois de lancement 100% gratuit',
+    offerTitleNo: 'Første lanseringsmåned 100% gratis',
+    offerSubtitleFr: 'Accès illimité et messagerie offerts pour tous les nouveaux inscrits ce mois-ci (0 NOK au lieu de 39 NOK)',
+    offerSubtitleNo: 'Full tilgang og meldinger gratis for alle nye medlemmer denne måneden (0 kr i stedet for 39 kr)',
+    maxSpots: totalDays,
+    remainingSpots: daysRemaining,
+  };
+};
 
 // Default current user profile template (used ONLY when testing, NEVER automatically logged in)
 export const DEFAULT_CURRENT_USER: UserProfile = {
@@ -351,14 +406,15 @@ const initStorage = () => {
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(defaultAccounts));
   }
 
-  // Ensure beta pioneers have a_paye = true for the first 50 registered accounts
+  // Ensure beta pioneers have a_paye = true for accounts during the launch month
   try {
+    const launchStats = computeLaunchOfferStats();
     const rawAccs = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
     if (rawAccs) {
       const accList: UserAccount[] = JSON.parse(rawAccs);
       let changed = false;
-      accList.slice(0, BETA_MAX_FREE_SPOTS).forEach((acc, i) => {
-        if (!acc.profile.a_paye || !acc.profile.is_beta_pioneer) {
+      accList.forEach((acc, i) => {
+        if (launchStats.isLaunchMonthActive && (!acc.profile.a_paye || !acc.profile.is_beta_pioneer)) {
           acc.profile.a_paye = true;
           acc.profile.is_beta_pioneer = true;
           acc.profile.beta_rank = i + 1;
@@ -483,21 +539,15 @@ export const dataStore = {
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
   },
 
-  getBetaPioneerStats(profilesCount?: number): BetaPioneerStats {
-    // Total count of members on the platform (responsive to real registrations)
+  getLaunchOfferStats(profilesCount?: number): LaunchOfferStats {
     const count = typeof profilesCount === 'number'
       ? profilesCount
       : this.getProfiles().length;
+    return computeLaunchOfferStats(count);
+  },
 
-    const registeredCount = Math.min(BETA_MAX_FREE_SPOTS, Math.max(0, count));
-    const remainingSpots = Math.max(0, BETA_MAX_FREE_SPOTS - registeredCount);
-    return {
-      maxSpots: BETA_MAX_FREE_SPOTS,
-      registeredCount,
-      remainingSpots,
-      isFreeOfferActive: remainingSpots > 0,
-      progressPercent: Math.round((registeredCount / BETA_MAX_FREE_SPOTS) * 100),
-    };
+  getBetaPioneerStats(profilesCount?: number): BetaPioneerStats {
+    return this.getLaunchOfferStats(profilesCount);
   },
 
   registerAccount(params: {
@@ -506,6 +556,7 @@ export const dataStore = {
     prenom: string;
     langue_maternelle: 'français' | 'norvégien';
     quartier?: string;
+    newsletterConsent?: boolean;
   }): { success: boolean; user?: UserProfile; error?: string } {
     const accounts = this.getAccounts();
     const existing = accounts.find((a) => a.email.toLowerCase() === params.email.trim().toLowerCase());
@@ -513,7 +564,7 @@ export const dataStore = {
       return { success: false, error: 'Un compte existe déjà avec cette adresse email.' };
     }
 
-    const isBetaFree = accounts.length < BETA_MAX_FREE_SPOTS;
+    const isLaunchFree = this.getLaunchOfferStats().isLaunchMonthActive;
 
     const newProfile: UserProfile = {
       id: 'user_' + Date.now(),
@@ -535,10 +586,11 @@ export const dataStore = {
         params.langue_maternelle === 'français' ? 'norvégien' : 'français'
       } !`,
       photo_url: '',
-      a_paye: isBetaFree ? true : false,
-      is_beta_pioneer: isBetaFree ? true : false,
-      beta_rank: isBetaFree ? accounts.length + 1 : undefined,
+      a_paye: isLaunchFree ? true : false,
+      is_beta_pioneer: isLaunchFree ? true : false,
+      beta_rank: accounts.length + 1,
       derniere_activite: new Date().toISOString(),
+      newsletter_subscribed: params.newsletterConsent !== false,
       lieux_preferes: [
         {
           id: 'place_user_' + Date.now(),
@@ -559,6 +611,17 @@ export const dataStore = {
 
     accounts.push(newAccount);
     this.saveAccounts(accounts);
+
+    // Auto-collect email for the future newsletter
+    if (params.newsletterConsent !== false) {
+      this.subscribeNewsletter({
+        email: params.email.trim(),
+        prenom: params.prenom.trim(),
+        langue_maternelle: params.langue_maternelle,
+        source: 'inscription_compte',
+        consent: true,
+      });
+    }
 
     // Also add to public profiles list
     const profiles = this.getProfiles();
@@ -891,13 +954,29 @@ export const dataStore = {
     });
   },
 
-  getMessages(conversationId: string): Message[] {
+  getAllStoredMessages(): Message[] {
     const raw = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-    const map = raw ? JSON.parse(raw) : INITIAL_MESSAGES;
+    if (!raw) return [...INITIAL_MESSAGES];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (typeof parsed === 'object' && parsed !== null) {
+        return Object.values(parsed).flat() as Message[];
+      }
+      return [...INITIAL_MESSAGES];
+    } catch {
+      return [...INITIAL_MESSAGES];
+    }
+  },
+
+  getMessages(conversationId: string): Message[] {
+    const all = this.getAllStoredMessages();
     const current = this.getCurrentUser();
     const currentId = current?.id || 'current_user';
 
-    const list: Message[] = map[conversationId] || [];
+    const list = all.filter((m) => m.conversation_id === conversationId);
     // Map legacy 'current_user' sender to currentId if appropriate
     return list.map((m) => {
       if (currentId !== 'current_user' && m.sender_id === 'current_user') {
@@ -907,22 +986,20 @@ export const dataStore = {
     });
   },
 
-  sendMessage(conversationId: string, content: string, senderId: string): Message {
-    const raw = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-    const map = raw ? JSON.parse(raw) : { ...INITIAL_MESSAGES };
-    const list = map[conversationId] || [];
+  sendMessage(conversationId: string, content: string, senderId?: string): Message {
+    const all = this.getAllStoredMessages();
+    const actualSenderId = senderId || this.getCurrentUser()?.id || 'current_user';
 
     const newMsg: Message = {
       id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       conversation_id: conversationId,
-      sender_id: senderId,
+      sender_id: actualSenderId,
       content,
       created_at: new Date().toISOString(),
     };
 
-    list.push(newMsg);
-    map[conversationId] = list;
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(map));
+    all.push(newMsg);
+    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
 
     // Update conversation last message & timestamp
     const rawConvs = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
@@ -957,7 +1034,7 @@ export const dataStore = {
     // Check if exists
     const existing = convs.find(
       (c) =>
-        (c.participant_ids.includes(currentId) || c.participant_ids.includes('current_user')) &&
+        c.participant_ids.includes(currentId) &&
         c.participant_ids.includes(partnerId)
     );
 
@@ -1028,11 +1105,140 @@ export const dataStore = {
     return this.getFavorites().includes(profileId);
   },
 
+  // -------------------------------------------------------------
+  // NEWSLETTER & EMAIL RECOLT SERVICE
+  // -------------------------------------------------------------
+
+  getNewsletterSubscribers(): NewsletterSubscriber[] {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.NEWSLETTER_SUBSCRIBERS);
+      if (!raw) {
+        // Seed with registered accounts if no separate newsletter key yet
+        const accounts = this.getAccounts();
+        const initialSubs: NewsletterSubscriber[] = accounts.map((acc, idx) => ({
+          id: 'sub_init_' + idx,
+          email: acc.email,
+          prenom: acc.profile.prenom,
+          langue_maternelle: acc.profile.langue_maternelle,
+          subscribed_at: acc.profile.derniere_activite || new Date().toISOString(),
+          source: 'inscription_compte',
+          consent: true,
+        }));
+        localStorage.setItem(STORAGE_KEYS.NEWSLETTER_SUBSCRIBERS, JSON.stringify(initialSubs));
+        return initialSubs;
+      }
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  },
+
+  saveNewsletterSubscribers(subscribers: NewsletterSubscriber[]) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.NEWSLETTER_SUBSCRIBERS, JSON.stringify(subscribers));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tandem_newsletter_updated', { detail: subscribers }));
+      }
+    } catch {}
+  },
+
+  subscribeNewsletter(
+    paramsOrEmail:
+      | string
+      | {
+          email: string;
+          prenom?: string;
+          langue_maternelle?: string;
+          source?: NewsletterSubscriber['source'];
+          consent?: boolean;
+        },
+    prenomArg?: string,
+    langueArg?: string,
+    sourceArg?: NewsletterSubscriber['source'],
+    consentArg?: boolean
+  ): { success: boolean; isNew: boolean } {
+    const rawEmail = typeof paramsOrEmail === 'string' ? paramsOrEmail : paramsOrEmail.email;
+    const cleanEmail = (rawEmail || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, isNew: false };
+    }
+
+    const prenom = typeof paramsOrEmail === 'string' ? prenomArg : paramsOrEmail.prenom;
+    const langue = typeof paramsOrEmail === 'string' ? langueArg : paramsOrEmail.langue_maternelle;
+    const source =
+      typeof paramsOrEmail === 'string'
+        ? sourceArg || 'visiteur_landing'
+        : paramsOrEmail.source || 'inscription_compte';
+    const consent =
+      typeof paramsOrEmail === 'string'
+        ? consentArg !== false
+        : paramsOrEmail.consent !== false;
+
+    const subscribers = this.getNewsletterSubscribers();
+    const existingIndex = subscribers.findIndex((s) => s.email.toLowerCase() === cleanEmail);
+
+    const now = new Date().toISOString();
+
+    if (existingIndex >= 0) {
+      // Update existing subscriber info
+      subscribers[existingIndex] = {
+        ...subscribers[existingIndex],
+        prenom: prenom?.trim() || subscribers[existingIndex].prenom,
+        langue_maternelle: langue || subscribers[existingIndex].langue_maternelle,
+        langue: langue || subscribers[existingIndex].langue || subscribers[existingIndex].langue_maternelle,
+        consent,
+      };
+      this.saveNewsletterSubscribers(subscribers);
+      return { success: true, isNew: false };
+    }
+
+    const newSub: NewsletterSubscriber = {
+      id: 'sub_' + Date.now(),
+      email: cleanEmail,
+      prenom: prenom?.trim(),
+      langue_maternelle: langue,
+      langue,
+      subscribed_at: now,
+      date_inscription: now,
+      source,
+      consent,
+    };
+
+    subscribers.unshift(newSub);
+    this.saveNewsletterSubscribers(subscribers);
+    return { success: true, isNew: true };
+  },
+
+  exportNewsletterCSV(): void {
+    const subscribers = this.getNewsletterSubscribers();
+    const rows = [
+      ['Email', 'Prenom', 'Langue_Maternelle', 'Date_Inscription', 'Source', 'Consentement_RGPD'],
+      ...subscribers.map((s) => [
+        `"${s.email.replace(/"/g, '""')}"`,
+        `"${(s.prenom || '').replace(/"/g, '""')}"`,
+        `"${(s.langue_maternelle || '').replace(/"/g, '""')}"`,
+        s.subscribed_at,
+        s.source,
+        s.consent ? 'OUI' : 'NON',
+      ]),
+    ];
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + rows.map((r) => r.join(';')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `tandem_oslo_newsletter_emails_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
   resetToDefault() {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     localStorage.removeItem(STORAGE_KEYS.PROFILES);
     localStorage.removeItem(STORAGE_KEYS.CONVERSATIONS);
     localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    localStorage.removeItem(STORAGE_KEYS.NEWSLETTER_SUBSCRIBERS);
     localStorage.removeItem('tandem_favorites_v1');
     initStorage();
   },

@@ -46,6 +46,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [accountNotFound, setAccountNotFound] = useState(false);
   const [accountAlreadyExists, setAccountAlreadyExists] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [newsletterConsent, setNewsletterConsent] = useState(true);
   const [socialModalProvider, setSocialModalProvider] = useState<'apple' | 'facebook' | 'google' | null>(null);
 
   // Automatic Google Connection State
@@ -146,6 +147,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         prenom: prenom.trim(),
         langue_maternelle: langueMaternelle,
         quartier: 'Sentrum, Oslo',
+        newsletterConsent: newsletterConsent,
       });
 
       if (!res.success || !res.user) {
@@ -242,31 +244,31 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </p>
         </div>
 
-        {/* Beta Launch 50 Free Spots Banner with Live Countdown */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-[#FFFDF8] to-orange-50 border border-amber-300 shadow-2xs space-y-2">
+        {/* Official Launch Month 100% Free Offer Banner */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-[#FFFDF8] to-amber-50 border border-emerald-300 shadow-2xs space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#FF5B24] text-white shrink-0 shadow-xs">
-                <Flame className="w-3.5 h-3.5 animate-pulse" />
+              <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#2E4A3D] text-white shrink-0 shadow-xs">
+                <Flame className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
               </span>
               <span className="text-xs font-bold text-[#1F2421]">
-                {locale === 'no' ? 'Beta-lansering: Gratis for de 50 første' : 'Offre Bêta : 0 NOK pour les 50 premiers'}
+                {locale === 'no' ? 'Offisiell lansering: 1. måned 100% gratis' : 'Lancement officiel : 1er mois 100% gratuit'}
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-[#FF5B24] text-white text-[10px] font-bold">
-              {locale === 'no' ? '0 kr' : '100% Offert'}
+            <span className="px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-bold">
+              {locale === 'no' ? '0 kr (Verdi 39 kr)' : '0 NOK (au lieu de 39)'}
             </span>
           </div>
 
           <p className="text-[11px] text-[#525E56] leading-snug">
             {locale === 'no'
-              ? `De 50 første som melder seg på får gratis livslang tilgang! Kun ${betaStats.remainingSpots} plasser igjen (${betaStats.registeredCount}/50 reservert).`
-              : `Les 50 premiers membres bénéficient de la gratuité totale à vie ! Plus que ${betaStats.remainingSpots} places gratuites (${betaStats.registeredCount}/50 réservées).`}
+              ? `Alle som oppretter profil denne måneden får ubegrenset tilgang gratis for alltid! ${betaStats.daysRemaining} dager igjen av tilbudet (${betaStats.registeredCount} medlemmer registrert).`
+              : `Tous les membres qui s'inscrivent ce mois-ci bénéficient de la gratuité totale et illimitée ! Plus que ${betaStats.daysRemaining} jours de gratuité (${betaStats.registeredCount} membres inscrits).`}
           </p>
 
-          <div className="w-full h-1.5 bg-amber-100 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-amber-500 to-[#FF5B24] rounded-full transition-all duration-300"
+              className="h-full bg-gradient-to-r from-emerald-500 to-[#2E4A3D] rounded-full transition-all duration-300"
               style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
             />
           </div>
@@ -650,15 +652,38 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
 
           {isSignUp && (
-            <div className="text-[11px] text-[#717A74] text-center pt-1 leading-normal">
-              <span>{t.authAgreeTerms} </span>
-              <button
-                type="button"
-                onClick={() => setIsTermsOpen(true)}
-                className="underline text-[#2E4A3D] font-medium hover:text-[#1F2421] cursor-pointer"
-              >
-                {locale === 'no' ? 'Les vilkår & personvern' : 'Lire les CGU & charte'}
-              </button>
+            <div className="space-y-3 pt-1">
+              {/* Newsletter Opt-in Checkbox (Pre-checked, GDPR compliant) */}
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#F8FAF7] border border-[#E0E8DF] text-xs">
+                <input
+                  type="checkbox"
+                  id="newsletter-optin"
+                  checked={newsletterConsent}
+                  onChange={(e) => setNewsletterConsent(e.target.checked)}
+                  className="mt-0.5 rounded border-[#C5D7C9] text-[#2E4A3D] focus:ring-[#2E4A3D] cursor-pointer"
+                />
+                <label htmlFor="newsletter-optin" className="text-[#3B473F] leading-snug cursor-pointer select-none">
+                  <strong className="text-[#1F2421] block font-semibold mb-0.5">
+                    {locale === 'no' ? 'Motta Tandem-nyhetsbrevet (anbefalt)' : 'Recevoir la lettre d’information (recommandé)'}
+                  </strong>
+                  <span className="text-[11px] text-[#55635A]">
+                    {locale === 'no'
+                      ? 'Invitasjoner til språktreff i Oslo, kafémøter og tips for å lære fransk og norsk.'
+                      : 'Invitations aux rencontres cafés à Oslo, événements bilingues et conseils d’apprentissage.'}
+                  </span>
+                </label>
+              </div>
+
+              <div className="text-[11px] text-[#717A74] text-center leading-normal">
+                <span>{t.authAgreeTerms} </span>
+                <button
+                  type="button"
+                  onClick={() => setIsTermsOpen(true)}
+                  className="underline text-[#2E4A3D] font-medium hover:text-[#1F2421] cursor-pointer"
+                >
+                  {locale === 'no' ? 'Les vilkår & personvern' : 'Lire les CGU & charte'}
+                </button>
+              </div>
             </div>
           )}
 

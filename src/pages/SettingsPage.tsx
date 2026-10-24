@@ -311,7 +311,7 @@ CREATE TABLE public.messages (
             }`}
           >
             {currentUser?.is_beta_pioneer ? (
-              <span>🔥 {locale === 'no' ? 'Pioner (Gratis Bêta)' : 'Pionnier Bêta (Gratuit)'}</span>
+              <span>🔥 {locale === 'no' ? 'Pioner (Lansering)' : 'Pionnier Lancement (Gratuit)'}</span>
             ) : currentUser?.a_paye ? (
               t.statusUnlimitedActive
             ) : (
@@ -350,8 +350,8 @@ CREATE TABLE public.messages (
             <span className="font-medium">
               {currentUser?.is_beta_pioneer
                 ? (locale === 'no'
-                    ? '🎉 Gratulerer! Du er blant de 50 første medlemmene og har gratis livslang tilgang til alt.'
-                    : '🎉 Félicitations ! Vous faites partie des 50 premiers membres : accès gratuit illimité à vie.')
+                    ? '🎉 Gratulerer! Du er registrert i lanseringsmåneden og har gratis livslang tilgang til alt.'
+                    : '🎉 Félicitations ! Vous êtes inscrit pendant le mois de lancement : accès gratuit illimité à vie.')
                 : (locale === 'no' ? '✓ Ubegrenset tilgang er aktiv på din konto.' : '✓ Accès illimité actif sur votre compte.')}
             </span>
             <button

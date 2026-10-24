@@ -90,8 +90,10 @@ export interface NewsletterSubscriber {
   email: string;
   prenom?: string;
   langue_maternelle?: string;
+  langue?: string;
   subscribed_at: string;
-  source: 'inscription_compte' | 'google_oauth' | 'social_oauth' | 'site_footer' | 'admin_import';
+  date_inscription?: string;
+  source: 'inscription_compte' | 'google_oauth' | 'social_oauth' | 'site_footer' | 'admin_import' | 'visiteur_landing';
   consent: boolean;
 }
 
