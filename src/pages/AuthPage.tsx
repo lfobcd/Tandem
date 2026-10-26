@@ -18,7 +18,6 @@ import {
   Globe,
 } from 'lucide-react';
 import { TermsModal } from '../components/TermsModal';
-import { SocialAuthModal } from '../components/SocialAuthModal';
 
 interface AuthPageProps {
   onNavigate: (page: PageView) => void;
@@ -73,7 +72,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [accountNotFound, setAccountNotFound] = useState(false);
   const [accountAlreadyExists, setAccountAlreadyExists] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
-  const [socialModalProvider, setSocialModalProvider] = useState<'apple' | 'facebook' | 'google' | null>(null);
 
   // Handle standard registration or login
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,15 +202,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
-  const handleSocialSuccess = (user: UserProfile) => {
-    setSuccessMessage(
-      locale === 'no'
-        ? 'Innlogging vellykket! Omdirigerer...'
-        : 'Connexion réussie ! Redirection en cours...'
-    );
-    setTimeout(() => {
-      onLoginSuccess(user, 'discovery');
-    }, 400);
+  const handleSocialLogin = async (provider: 'google' | 'facebook' | 'apple') => {
+    setError('');
+    const res = await supabaseAuth.signInWithOAuth(provider, { langue_maternelle: langueMaternelle });
+    if (!res.success) {
+      setError(`Erreur : ${res.error || 'Connexion impossible.'}`);
+    }
+    // Sinon : le navigateur part chez le fournisseur puis revient sur le site (géré dans App.tsx).
   };
 
   return (
@@ -576,7 +572,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         <div className="relative flex py-1 items-center">
           <div className="grow border-t border-[#E5E1D8]"></div>
           <span className="shrink mx-2 text-[10px] text-[#717A74] uppercase tracking-wider font-semibold">
-            {locale === 'no' ? 'Eller med Google' : 'Ou continuer avec Google'}
+            {locale === 'no' ? 'Eller fortsett med' : 'Ou continuer avec'}
           </span>
           <div className="grow border-t border-[#E5E1D8]"></div>
         </div>
@@ -584,7 +580,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         {/* GOOGLE SIGN IN BUTTON */}
         <button
           type="button"
-          onClick={() => setSocialModalProvider('google')}
+          onClick={() => handleSocialLogin('google')}
           className="w-full py-2.5 px-4 bg-white border border-[#D5DDD7] hover:border-[#1F2421] hover:bg-[#FAF8F5] rounded-xl text-xs font-medium text-[#1F2421] transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs"
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -608,6 +604,30 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           <span>{locale === 'no' ? 'Fortsett med Google' : 'Continuer avec Google'}</span>
         </button>
 
+        {/* FACEBOOK SIGN IN BUTTON */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('facebook')}
+          className="w-full py-2.5 px-4 bg-[#1877F2] hover:bg-[#166FE5] rounded-xl text-xs font-medium text-white transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs"
+        >
+          <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+          </svg>
+          <span>{locale === 'no' ? 'Fortsett med Facebook' : 'Continuer avec Facebook'}</span>
+        </button>
+
+        {/* APPLE SIGN IN BUTTON */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('apple')}
+          className="w-full py-2.5 px-4 bg-black hover:bg-[#222] rounded-xl text-xs font-medium text-white transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs"
+        >
+          <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 170 170">
+            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.67-7.81-11.96-14.34-6.3-9.5-11.22-20.15-14.75-31.95-3.53-11.8-5.3-22.9-5.3-33.3 0-14.54 3.69-26.68 11.07-36.42 7.39-9.74 16.73-14.73 28.02-14.98 4.35 0 9.42 1.25 15.22 3.75 5.8 2.5 9.74 3.75 11.81 3.75 1.74 0 5.76-1.3 12.08-3.9 6.31-2.6 11.41-3.75 15.3-3.46 11.82.63 21.05 4.9 27.69 12.82-10.43 6.32-15.54 15.01-15.32 26.08.22 8.7 3.59 15.98 10.12 21.84 6.53 5.87 14.13 9.13 22.81 9.78-2.39 7.18-5.33 14.24-8.81 21.19zM119.22 31.81c0-7.07 2.61-13.7 7.83-19.89 5.22-6.19 11.74-10.16 19.57-11.92.22 1.3.33 2.5.33 3.6 0 6.96-2.72 13.7-8.15 20.21-5.43 6.52-12 10.55-19.7 12.1-.22-1.3-.33-2.5-.33-3.6z" />
+          </svg>
+          <span>{locale === 'no' ? 'Fortsett med Apple' : 'Continuer avec Apple'}</span>
+        </button>
+
         {/* Quick Manager login link for bcdlfo@gmail.com */}
         <div className="pt-2 text-center border-t border-[#F0ECE1]">
           <button
@@ -624,15 +644,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Social Auth Modal for clean Google/Apple/Facebook pop-up */}
-      <SocialAuthModal
-        isOpen={Boolean(socialModalProvider)}
-        provider={socialModalProvider}
-        onClose={() => setSocialModalProvider(null)}
-        onSuccess={handleSocialSuccess}
-        initialLang={langueMaternelle}
-      />
 
       {/* Terms and Privacy Modal */}
       <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageView, UserProfile } from './types';
-import { dataStore } from './lib/supabase';
+import { dataStore, supabaseAuth, getSupabase, hasLiveSupabaseConfig } from './lib/supabase';
 import { I18nProvider, useTranslation } from './lib/i18n';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -50,7 +50,30 @@ function MainApp() {
     };
     window.addEventListener('hashchange', handleHashChange);
 
+    // Retour d'une connexion Google / Facebook / Apple : création ou récupération du profil
+    const finishOAuth = async () => {
+      const res = await supabaseAuth.completeOAuthLogin();
+      if (res.success && res.user) {
+        setCurrentUser(res.user);
+        setProfiles(dataStore.getProfiles());
+        setCurrentPage((p) => (p === 'auth' || p === 'landing' ? 'discovery' : p));
+        // Nettoie les paramètres OAuth de l'URL
+        if (window.location.search || window.location.hash.includes('access_token')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } else if (res.error) {
+        console.error('[OAuth]', res.error);
+        alert(res.error);
+      }
+    };
+    finishOAuth();
+    const sb = hasLiveSupabaseConfig() ? getSupabase() : null;
+    const authSub = sb?.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') finishOAuth();
+    });
+
     return () => {
+      authSub?.data.subscription.unsubscribe();
       window.removeEventListener('tandem_profiles_updated', handleProfilesUpdate);
       window.removeEventListener('hashchange', handleHashChange);
     };
