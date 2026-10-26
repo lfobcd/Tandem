@@ -202,11 +202,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
+  const enabledProviders = String((import.meta as any).env?.VITE_OAUTH_PROVIDERS || 'google')
+    .split(',')
+    .map((x: string) => x.trim().toLowerCase());
+
   const handleSocialLogin = async (provider: 'google' | 'facebook' | 'apple') => {
     setError('');
     const res = await supabaseAuth.signInWithOAuth(provider, { langue_maternelle: langueMaternelle });
     if (!res.success) {
-      setError(`Erreur : ${res.error || 'Connexion impossible.'}`);
+      const raw = res.error || 'Connexion impossible.';
+      const notEnabled = /provider is not enabled|Unsupported provider/i.test(raw);
+      setError(
+        notEnabled
+          ? "Cette connexion n'est pas encore disponible. Merci de vous inscrire avec votre email."
+          : `Erreur : ${raw}`
+      );
     }
     // Sinon : le navigateur part chez le fournisseur puis revient sur le site (géré dans App.tsx).
   };
@@ -605,6 +615,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         </button>
 
         {/* FACEBOOK SIGN IN BUTTON */}
+        {enabledProviders.includes('facebook') && (
         <button
           type="button"
           onClick={() => handleSocialLogin('facebook')}
@@ -615,8 +626,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </svg>
           <span>{locale === 'no' ? 'Fortsett med Facebook' : 'Continuer avec Facebook'}</span>
         </button>
+        )}
 
         {/* APPLE SIGN IN BUTTON */}
+        {enabledProviders.includes('apple') && (
         <button
           type="button"
           onClick={() => handleSocialLogin('apple')}
@@ -627,6 +640,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </svg>
           <span>{locale === 'no' ? 'Fortsett med Apple' : 'Continuer avec Apple'}</span>
         </button>
+        )}
 
         {/* Quick Manager login link for bcdlfo@gmail.com */}
         <div className="pt-2 text-center border-t border-[#F0ECE1]">
