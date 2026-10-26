@@ -69,6 +69,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   // Status & Modals
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [accountNotFound, setAccountNotFound] = useState(false);
   const [accountAlreadyExists, setAccountAlreadyExists] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -78,33 +79,52 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setAccountNotFound(false);
     setAccountAlreadyExists(false);
 
-    if (!email.trim() || !password) {
-      setError(
-        locale === 'no'
-          ? 'Vennligst oppgi e-postadresse og passord.'
-          : 'Veuillez renseigner votre email et choisir un mot de passe.'
-      );
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPrenom = prenom.trim();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!cleanEmail) {
+      const msg = locale === 'no' ? 'Erreur : Vennligst oppgi en e-postadresse.' : 'Erreur : Veuillez renseigner votre adresse e-mail.';
+      setError(msg);
+      console.error('[Auth Form] Missing email field');
       return;
     }
 
-    if (isSignUp && !prenom.trim()) {
-      setError(
-        locale === 'no'
-          ? 'Vennligst oppgi fornavnet ditt.'
-          : 'Veuillez renseigner votre prénom.'
-      );
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      const msg = locale === 'no' 
+        ? 'Erreur : Vennligst oppgi en gyldig e-postadresse (f.eks. navn@eksempel.no).' 
+        : 'Erreur : Format d\'email invalide (ex: alex@tandem.org).';
+      setError(msg);
+      console.error('[Auth Form] Invalid email format:', { input: cleanEmail });
+      return;
+    }
+
+    if (!password) {
+      const msg = locale === 'no' ? 'Erreur : Vennligst oppgi et passord.' : 'Erreur : Veuillez choisir un mot de passe.';
+      setError(msg);
+      console.error('[Auth Form] Missing password field');
       return;
     }
 
     if (password.length < 4) {
-      setError(
-        locale === 'no'
-          ? 'Passordet må ha minst 4 tegn.'
-          : 'Le mot de passe doit comporter au moins 4 caractères.'
-      );
+      const msg = locale === 'no'
+        ? 'Erreur : Passordet må ha minst 4 tegn.'
+        : 'Erreur : Le mot de passe doit comporter au moins 4 caractères.';
+      setError(msg);
+      console.error('[Auth Form] Password length too short:', password.length);
+      return;
+    }
+
+    if (isSignUp && !cleanPrenom) {
+      const msg = locale === 'no'
+        ? 'Erreur : Vennligst oppgi fornavnet ditt.'
+        : 'Erreur : Veuillez renseigner votre prénom.';
+      setError(msg);
+      console.error('[Auth Form] Missing first name in sign-up mode');
       return;
     }
 
@@ -112,11 +132,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     try {
       if (isSignUp) {
+        console.log('[Auth Form] Submitting registration for:', { email: cleanEmail, prenom: cleanPrenom, quartier, langueMaternelle });
+
         // Asynchronous registration with direct server database sync
         const res = await dataStore.registerAccountAsync({
-          email: email.trim(),
+          email: cleanEmail,
           password,
-          prenom: prenom.trim(),
+          prenom: cleanPrenom,
           langue_maternelle: langueMaternelle,
           quartier,
           niveau,
@@ -124,44 +146,73 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         });
 
         if (!res.success || !res.user) {
-          setError(
-            res.error ||
-              (locale === 'no'
-                ? 'Kunne ikke opprette konto.'
-                : 'Erreur lors de la création du compte.')
-          );
+          const rawErr = res.error || (locale === 'no' ? 'Kunne ikke opprette konto.' : 'Erreur lors de la création du compte.');
+          console.error('[Auth Form] Registration failed with message:', rawErr);
+          
+          if (rawErr.toLowerCase().includes('déjà') || rawErr.toLowerCase().includes('already')) {
+            setAccountAlreadyExists(true);
+            setError(locale === 'no' ? 'Erreur : En konto med denne e-posten finnes allerede.' : 'Erreur : Un compte existe déjà avec cette adresse e-mail.');
+          } else {
+            setError(rawErr.startsWith('Erreur') ? rawErr : `Erreur : ${rawErr}`);
+          }
           return;
         }
 
-        // Success -> redirect to discovery
-        onLoginSuccess(res.user, 'discovery');
+        console.log('[Auth Form] Registration succeeded!', { userId: res.user.id, email: res.user.email });
+        setSuccessMessage(
+          locale === 'no'
+            ? 'Inscription réussie ! Velkommen til Tandem Oslo. Omdirigerer...'
+            : 'Inscription réussie ! Bienvenue sur Tandem Oslo. Redirection en cours...'
+        );
+
+        // Allow visible feedback for 650ms before routing to discovery
+        setTimeout(() => {
+          onLoginSuccess(res.user!, 'discovery');
+        }, 650);
       } else {
         // Login
-        const res = dataStore.loginAccount(email.trim(), password);
+        console.log('[Auth Form] Attempting login for:', cleanEmail);
+        const res = dataStore.loginAccount(cleanEmail, password);
         if (!res.success || !res.user) {
           if (res.notFound) {
             setAccountNotFound(true);
+            console.error('[Auth Form] Account not found for email:', cleanEmail);
+          } else {
+            console.error('[Auth Form] Invalid credentials for email:', cleanEmail);
           }
-          setError(
-            res.error ||
-              (locale === 'no'
-                ? 'Feil e-postadresse eller passord.'
-                : 'Email ou mot de passe incorrect.')
-          );
+          const rawErr = res.error || (locale === 'no' ? 'Feil e-postadresse eller passord.' : 'Email ou mot de passe incorrect.');
+          setError(rawErr.startsWith('Erreur') ? rawErr : `Erreur : ${rawErr}`);
           return;
         }
 
-        onLoginSuccess(res.user, 'discovery');
+        console.log('[Auth Form] Login succeeded!', { userId: res.user.id });
+        setSuccessMessage(
+          locale === 'no'
+            ? 'Innlogging vellykket! Velkommen tilbake.'
+            : 'Connexion réussie ! Heureux de vous revoir.'
+        );
+
+        setTimeout(() => {
+          onLoginSuccess(res.user!, 'discovery');
+        }, 500);
       }
     } catch (err: any) {
-      setError(err?.message || 'Une erreur est survenue lors du traitement.');
+      console.error('[Auth Form Critical Exception]', err);
+      setError(`Erreur : ${err?.message || 'Une erreur inattendue est survenue.'}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleSocialSuccess = (user: UserProfile) => {
-    onLoginSuccess(user, 'discovery');
+    setSuccessMessage(
+      locale === 'no'
+        ? 'Innlogging vellykket! Omdirigerer...'
+        : 'Connexion réussie ! Redirection en cours...'
+    );
+    setTimeout(() => {
+      onLoginSuccess(user, 'discovery');
+    }, 400);
   };
 
   return (
@@ -204,6 +255,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             onClick={() => {
               setIsSignUp(true);
               setError('');
+              setSuccessMessage('');
               setAccountNotFound(false);
               setAccountAlreadyExists(false);
             }}
@@ -220,6 +272,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             onClick={() => {
               setIsSignUp(false);
               setError('');
+              setSuccessMessage('');
               setAccountNotFound(false);
               setAccountAlreadyExists(false);
             }}
@@ -233,20 +286,59 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </button>
         </div>
 
-        {/* Helpful Notifications */}
+        {/* Success Banner */}
+        {successMessage && (
+          <div className="p-3.5 bg-emerald-50 text-emerald-900 text-xs rounded-xl border border-emerald-300 flex items-start gap-2 shadow-2xs">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+            <span className="font-semibold leading-snug">{successMessage}</span>
+          </div>
+        )}
+
+        {/* Account Already Exists Banner */}
+        {accountAlreadyExists && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2 text-xs text-amber-950 shadow-2xs">
+            <div className="flex items-center gap-2 font-semibold">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                {locale === 'no'
+                  ? 'Denne e-postadressen er allerede registrert.'
+                  : 'Cet e-mail est déjà associé à un compte.'}
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800">
+              {locale === 'no'
+                ? 'Klikk nedenfor for å logge inn med passordet ditt :'
+                : 'Connectez-vous directement pour accéder à votre profil et vos messages :'}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(false);
+                setError('');
+                setAccountAlreadyExists(false);
+              }}
+              className="w-full py-2 px-3 bg-[#2E4A3D] text-white rounded-xl font-medium hover:bg-[#23382E] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+            >
+              <span>{locale === 'no' ? 'Gå til innlogging' : 'Se connecter avec ce compte'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Account Not Found Banner */}
         {accountNotFound && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2 text-xs text-amber-950">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2 text-xs text-amber-950 shadow-2xs">
             <div className="flex items-center gap-2 font-semibold">
               <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
                 {locale === 'no'
                   ? 'Ingen konto funnet med denne e-posten.'
-                  : "Aucun compte trouvé avec cet email."}
+                  : 'Aucun compte trouvé avec cet e-mail.'}
               </span>
             </div>
             <p className="text-[11px] text-amber-800">
               {locale === 'no'
-                ? 'Klikk nedenfor for å opprette profilen din direkte.'
+                ? 'Klikk nedenfor for å opprette profilen din gratis i dag :'
                 : 'Cliquez ci-dessous pour créer votre profil gratuitement :'}
             </p>
             <button
@@ -258,17 +350,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               }}
               className="w-full py-2 px-3 bg-[#2E4A3D] text-white rounded-xl font-medium hover:bg-[#23382E] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
             >
-              <span>{locale === 'no' ? 'Opprett kontoen min' : 'Créer mon compte'}</span>
+              <span>{locale === 'no' ? 'Opprett kontoen min' : 'Créer mon profil'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
         {/* Error Banner */}
-        {error && !accountNotFound && (
-          <div className="p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-start gap-2">
+        {error && !accountNotFound && !accountAlreadyExists && (
+          <div className="p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-start gap-2 shadow-2xs">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
-            <span className="leading-snug">{error}</span>
+            <span className="leading-snug font-medium">{error}</span>
           </div>
         )}
 

@@ -162,7 +162,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   const [selectedInterest, setSelectedInterest] = useState<string>('all');
   const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
   const [favorites, setFavorites] = useState<string[]>(() => dataStore.getFavorites());
-  const [onlyCompatible, setOnlyCompatible] = useState<boolean>(true);
+  const [onlyCompatible, setOnlyCompatible] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'recent' | 'favorites_first' | 'french_first' | 'norwegian_first' | 'name_asc'>('recent');
   const [showMultiLangBanner, setShowMultiLangBanner] = useState<boolean>(true);
 

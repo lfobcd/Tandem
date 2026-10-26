@@ -4,6 +4,29 @@ import { INITIAL_PROFILES, INITIAL_CONVERSATIONS, INITIAL_MESSAGES } from '../da
 import { VIPPS_SECURITY_CONFIG } from '../config/vippsSecurity';
 
 // Supabase credentials configuration from env or local config
+export function hashPasswordSync(password: string): string {
+  let hash = 5381;
+  const str = password + '_tandem_oslo_salt_2026';
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return `h_${Math.abs(hash).toString(16)}_${str.length}`;
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + '_tandem_oslo_salt_2026');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
+    console.error('[Security] Failed to hash password with Web Crypto, using safe fallback', err);
+    return hashPasswordSync(password);
+  }
+}
+
 const getStoredConfig = () => {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -611,39 +634,64 @@ export const dataStore = {
     prenom: string;
     langue_maternelle: 'français' | 'norvégien';
     quartier?: string;
+    niveau?: any;
     newsletterConsent?: boolean;
+    bio?: string;
+    envies?: string;
   }): { success: boolean; user?: UserProfile; error?: string } {
+    const cleanEmail = (params.email || '').trim().toLowerCase();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Strict validation
+    if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+      console.error('[Registration Error] Invalid email address format:', params.email);
+      return { success: false, error: 'Veuillez saisir une adresse email valide (ex: contact@domaine.com).' };
+    }
+    if (!params.prenom || !params.prenom.trim()) {
+      console.error('[Registration Error] Missing first name');
+      return { success: false, error: 'Veuillez renseigner votre prénom.' };
+    }
+    if (!params.password || params.password.length < 4) {
+      console.error('[Registration Error] Password too short (< 4 chars)');
+      return { success: false, error: 'Le mot de passe doit comporter au moins 4 caractères.' };
+    }
+
     const accounts = this.getAccounts();
-    const existing = accounts.find((a) => a.email.toLowerCase() === params.email.trim().toLowerCase());
+    const existing = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
     if (existing) {
-      return { success: false, error: 'Un compte existe déjà avec cette adresse email.' };
+      console.error('[Registration Error] Duplicate email detected:', cleanEmail);
+      return { success: false, error: 'Un compte existe déjà avec cette adresse email. Veuillez vous connecter.' };
     }
 
     const isLaunchFree = this.getLaunchOfferStats().isLaunchMonthActive;
+    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+    const pwdHash = hashPasswordSync(params.password);
 
     const newProfile: UserProfile = {
       id: 'user_' + Date.now(),
-      email: params.email.trim(),
+      email: cleanEmail,
       prenom: params.prenom.trim(),
       langue_maternelle: params.langue_maternelle,
       langue_apprise: params.langue_maternelle === 'français' ? 'norvégien' : 'français',
-      niveau: 'A2',
+      niveau: params.niveau || 'A2',
       quartier: params.quartier || 'Sentrum, Oslo',
       disponibilites: [
         { day: 'mardi', slots: ['soir'] },
         { day: 'jeudi', slots: ['soir'] },
         { day: 'samedi', slots: ['matin'] },
       ],
-      envies: params.langue_maternelle === 'français'
+      envies: params.envies || (params.langue_maternelle === 'français'
         ? "Conversations informelles autour d'un café et échange culturel."
-        : 'Uformelle samtaler over en kaffe og kulturutveksling.',
-      bio: `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
+        : 'Uformelle samtaler over en kaffe og kulturutveksling.'),
+      bio: params.bio || `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
         params.langue_maternelle === 'français' ? 'norvégien' : 'français'
       } !`,
       photo_url: '',
-      a_paye: isLaunchFree ? true : false,
+      a_paye: isOwner ? true : (isLaunchFree ? true : false),
       is_beta_pioneer: isLaunchFree ? true : false,
       beta_rank: accounts.length + 1,
+      is_admin: isOwner ? true : undefined,
+      is_completed: true,
       derniere_activite: new Date().toISOString(),
       newsletter_subscribed: params.newsletterConsent !== false,
       lieux_preferes: [
@@ -659,8 +707,8 @@ export const dataStore = {
     };
 
     const newAccount: UserAccount = {
-      email: params.email.trim(),
-      passwordHash: params.password,
+      email: cleanEmail,
+      passwordHash: pwdHash,
       profile: newProfile,
     };
 
@@ -670,7 +718,7 @@ export const dataStore = {
     // Auto-collect email for the future newsletter
     if (params.newsletterConsent !== false) {
       this.subscribeNewsletter({
-        email: params.email.trim(),
+        email: cleanEmail,
         prenom: params.prenom.trim(),
         langue_maternelle: params.langue_maternelle,
         source: 'inscription_compte',
@@ -678,30 +726,37 @@ export const dataStore = {
       });
     }
 
-    // Also add to public profiles list
+    // Add to local profiles list immediately
     const profiles = this.getProfiles();
-    profiles.unshift(newProfile);
+    const pIdx = profiles.findIndex((p) => p.id === newProfile.id || (p.email && p.email.toLowerCase() === cleanEmail));
+    if (pIdx >= 0) profiles[pIdx] = newProfile;
+    else profiles.unshift(newProfile);
     this.saveProfiles(profiles);
 
     // Set as current logged-in user
     this.setCurrentUser(newProfile);
 
-    // Persist to central server database immediately
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+    }
+
+    // Persist to central server database if server is accessible
     try {
       fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+        body: JSON.stringify({ ...params, email: cleanEmail }),
       })
         .then(async (r) => {
-          if (r.ok) {
+          const contentType = r.headers.get('content-type') || '';
+          if (r.ok && contentType.includes('application/json')) {
             const data = await r.json();
             if (data.user && typeof window !== 'undefined') {
               window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
             }
           }
         })
-        .catch((e) => console.warn('Server registration notice:', e));
+        .catch((e) => console.warn('Background server registration notice:', e));
     } catch {}
 
     return { success: true, user: newProfile };
@@ -718,45 +773,183 @@ export const dataStore = {
     bio?: string;
     envies?: string;
   }): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-    try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      });
-      const data = await res.json();
-      if (data.success && data.user) {
-        // Update local accounts
+    const cleanEmail = (params.email || '').trim().toLowerCase();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // 1. Strict client validation
+    if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+      console.error('[Registration Error] Invalid email address format:', params.email);
+      return { success: false, error: 'Veuillez saisir une adresse email valide (ex: contact@domaine.com).' };
+    }
+    if (!params.prenom || !params.prenom.trim()) {
+      console.error('[Registration Error] Missing first name');
+      return { success: false, error: 'Veuillez renseigner votre prénom.' };
+    }
+    if (!params.password || params.password.length < 4) {
+      console.error('[Registration Error] Password too short (< 4 chars)');
+      return { success: false, error: 'Le mot de passe doit comporter au moins 4 caractères.' };
+    }
+
+    // 2. LIVE SUPABASE DATABASE CHECK & INSERT (if configured)
+    const supabase = getSupabase();
+    if (supabase && hasLiveSupabaseConfig()) {
+      try {
+        console.log('[Supabase DB] Attempting live registration for:', cleanEmail);
+        
+        // Check for existing profile in Supabase table
+        const { data: existingProfiles, error: checkError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', cleanEmail)
+          .limit(1);
+
+        if (checkError) {
+          console.error('[Supabase Check Error]', checkError);
+        } else if (existingProfiles && existingProfiles.length > 0) {
+          console.error('[Supabase Error] Profile already exists in database:', cleanEmail);
+          return { success: false, error: 'Un compte existe déjà avec cette adresse email sur Tandem.' };
+        }
+
+        // Register user with Supabase Auth (passwords safely hashed by Supabase)
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: params.password,
+        });
+
+        if (authError && !authError.message.toLowerCase().includes('already registered')) {
+          console.error('[Supabase Auth signUp Error]', authError);
+        }
+
+        const userId = authData?.user?.id || `user_sp_${Date.now()}`;
+        const isLaunchFree = this.getLaunchOfferStats().isLaunchMonthActive;
+        const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+
+        const supaProfile: UserProfile = {
+          id: userId,
+          email: cleanEmail,
+          prenom: params.prenom.trim(),
+          langue_maternelle: params.langue_maternelle,
+          langue_apprise: params.langue_maternelle === 'français' ? 'norvégien' : 'français',
+          niveau: params.niveau || 'A2',
+          quartier: params.quartier || 'Sentrum, Oslo',
+          disponibilites: [
+            { day: 'mardi', slots: ['soir'] },
+            { day: 'jeudi', slots: ['soir'] },
+            { day: 'samedi', slots: ['matin'] },
+          ],
+          envies: params.envies || (params.langue_maternelle === 'français'
+            ? "Conversations informelles autour d'un café et échange culturel."
+            : 'Uformelle samtaler over en kaffe og kulturutveksling.'),
+          bio: params.bio || `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
+            params.langue_maternelle === 'français' ? 'norvégien' : 'français'
+          } !`,
+          photo_url: '',
+          a_paye: isOwner ? true : (isLaunchFree ? true : false),
+          is_beta_pioneer: isLaunchFree ? true : false,
+          beta_rank: 1,
+          is_admin: isOwner ? true : undefined,
+          is_completed: true,
+          derniere_activite: new Date().toISOString(),
+          newsletter_subscribed: params.newsletterConsent !== false,
+          lieux_preferes: [
+            {
+              id: 'place_sp_' + Date.now(),
+              label: 'Café Fuglen (Sentrum)',
+              latitude: 59.9171,
+              longitude: 10.7402,
+              address: 'Universitetsgata 2, Oslo',
+              type: 'cafe',
+            },
+          ],
+        };
+
+        // Insert / Upsert into Supabase profiles table
+        const { error: insertError } = await supabase.from('profiles').upsert(supaProfile);
+        if (insertError) {
+          console.error('[Supabase Profiles Insert Error]', insertError);
+        } else {
+          console.log('[Supabase DB] Profile created successfully in Supabase!');
+        }
+
+        // Save locally and set current user
+        const pwdHash = await hashPassword(params.password);
         const accounts = this.getAccounts();
-        const aIdx = accounts.findIndex((a) => a.email.toLowerCase() === params.email.trim().toLowerCase());
+        const aIdx = accounts.findIndex((a) => a.email.toLowerCase() === cleanEmail);
         const accItem: UserAccount = {
-          email: params.email.trim(),
-          passwordHash: params.password,
-          profile: data.user,
+          email: cleanEmail,
+          passwordHash: pwdHash,
+          profile: supaProfile,
         };
         if (aIdx >= 0) accounts[aIdx] = accItem;
         else accounts.unshift(accItem);
         this.saveAccounts(accounts);
 
-        // Update local profiles
         const profiles = this.getProfiles();
-        const pIdx = profiles.findIndex((p) => p.id === data.user.id || (p.email && p.email.toLowerCase() === params.email.trim().toLowerCase()));
-        if (pIdx >= 0) profiles[pIdx] = data.user;
-        else profiles.unshift(data.user);
+        const pIdx = profiles.findIndex((p) => p.id === supaProfile.id || (p.email && p.email.toLowerCase() === cleanEmail));
+        if (pIdx >= 0) profiles[pIdx] = supaProfile;
+        else profiles.unshift(supaProfile);
         this.saveProfiles(profiles);
 
-        this.setCurrentUser(data.user);
+        this.setCurrentUser(supaProfile);
+
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
         }
-        return { success: true, user: data.user };
-      } else if (data.error) {
-        return { success: false, error: data.error };
+
+        return { success: true, user: supaProfile };
+      } catch (supaErr: any) {
+        console.error('[Supabase Registration Exception]', supaErr);
+      }
+    }
+
+    // 3. API SERVER REGISTRATION (if full-stack Node server is reachable)
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...params, email: cleanEmail }),
+      });
+      const contentType = res.headers.get('content-type') || '';
+      // Guard against Vercel static rewrite returning index.html (text/html)
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          const pwdHash = await hashPassword(params.password);
+          const accounts = this.getAccounts();
+          const aIdx = accounts.findIndex((a) => a.email.toLowerCase() === cleanEmail);
+          const accItem: UserAccount = {
+            email: cleanEmail,
+            passwordHash: pwdHash,
+            profile: data.user,
+          };
+          if (aIdx >= 0) accounts[aIdx] = accItem;
+          else accounts.unshift(accItem);
+          this.saveAccounts(accounts);
+
+          const profiles = this.getProfiles();
+          const pIdx = profiles.findIndex((p) => p.id === data.user.id || (p.email && p.email.toLowerCase() === cleanEmail));
+          if (pIdx >= 0) profiles[pIdx] = data.user;
+          else profiles.unshift(data.user);
+          this.saveProfiles(profiles);
+
+          this.setCurrentUser(data.user);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+          }
+          return { success: true, user: data.user };
+        } else if (data.error) {
+          console.error('[API Registration Error]', data.error);
+          return { success: false, error: data.error };
+        }
+      } else if (!contentType.includes('application/json')) {
+        console.warn('[Vercel Notice] /api/register returned non-JSON response (likely static rewrite to index.html). Using direct store.');
       }
     } catch (e) {
-      console.warn('Network registration error, using local fallback:', e);
+      console.warn('Network registration API unavailable, using store:', e);
     }
-    return this.registerAccount(params);
+
+    // 4. FALLBACK STORE (with hashed password and event dispatch)
+    return await this.registerAccount(params);
   },
 
   loginAccount(email: string, password: string): { success: boolean; user?: UserProfile; error?: string; notFound?: boolean } {
@@ -1360,7 +1553,31 @@ export const dataStore = {
 
   async syncWithServer(): Promise<{ profilesCount: number; accountsCount: number; subscribersCount: number }> {
     try {
-      // 1. Sync any local accounts / subscribers to server (in case offline earlier)
+      let profilesCount = 0;
+      let accountsCount = 0;
+      let subscribersCount = 0;
+
+      // 1. LIVE SUPABASE DIRECT DATABASE SYNC (if live database is configured)
+      const supabase = getSupabase();
+      if (supabase && hasLiveSupabaseConfig()) {
+        try {
+          const { data: supaProfiles, error: supaErr } = await supabase.from('profiles').select('*');
+          if (supaErr) {
+            console.error('[Supabase Sync Error] Failed to fetch profiles from table:', supaErr);
+          } else if (Array.isArray(supaProfiles) && supaProfiles.length > 0) {
+            const current = this.getProfiles();
+            const supaEmails = new Set(supaProfiles.map((p: any) => (p.email || '').toLowerCase()));
+            const nonSupa = current.filter((p) => !supaEmails.has((p.email || '').toLowerCase()));
+            const merged = [...supaProfiles, ...nonSupa];
+            this.saveProfiles(merged);
+            profilesCount = supaProfiles.length;
+          }
+        } catch (e) {
+          console.error('[Supabase Sync Exception]', e);
+        }
+      }
+
+      // 2. Sync local accounts / subscribers to server (if offline earlier)
       const localAccounts = this.getAccounts();
       const localSubs = this.getNewsletterSubscribers();
       if (localAccounts.length > 0 || localSubs.length > 0) {
@@ -1371,45 +1588,54 @@ export const dataStore = {
         }).catch(() => {});
       }
 
-      // 2. Pull server profiles
+      // 3. Pull server profiles (checking JSON content-type to avoid Vercel SPA index.html rewrite)
       const profRes = await fetch('/api/profiles').catch(() => null);
-      let profilesCount = 0;
       if (profRes && profRes.ok) {
-        const data = await profRes.json();
-        if (Array.isArray(data.profiles) && data.profiles.length > 0) {
-          this.saveProfiles(data.profiles);
-          profilesCount = data.profiles.length;
+        const contentType = profRes.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await profRes.json();
+          if (Array.isArray(data.profiles) && data.profiles.length > 0) {
+            this.saveProfiles(data.profiles);
+            profilesCount = data.profiles.length;
+          }
         }
       }
 
-      // 3. Pull server accounts
+      // 4. Pull server accounts
       const accRes = await fetch('/api/accounts').catch(() => null);
-      let accountsCount = 0;
       if (accRes && accRes.ok) {
-        const data = await accRes.json();
-        if (Array.isArray(data.accounts)) {
-          this.saveAccounts(data.accounts);
-          accountsCount = data.accounts.length;
+        const contentType = accRes.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await accRes.json();
+          if (Array.isArray(data.accounts)) {
+            this.saveAccounts(data.accounts);
+            accountsCount = data.accounts.length;
+          }
         }
       }
 
-      // 4. Pull newsletter subscribers
+      // 5. Pull newsletter subscribers
       const newsRes = await fetch('/api/newsletter').catch(() => null);
-      let subscribersCount = 0;
       if (newsRes && newsRes.ok) {
-        const data = await newsRes.json();
-        if (Array.isArray(data.subscribers)) {
-          this.saveNewsletterSubscribers(data.subscribers);
-          subscribersCount = data.subscribers.length;
+        const contentType = newsRes.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await newsRes.json();
+          if (Array.isArray(data.subscribers)) {
+            this.saveNewsletterSubscribers(data.subscribers);
+            subscribersCount = data.subscribers.length;
+          }
         }
       }
 
-      // 5. Pull VIPPS requests
+      // 6. Pull VIPPS requests
       const vippsRes = await fetch('/api/vipps').catch(() => null);
       if (vippsRes && vippsRes.ok) {
-        const data = await vippsRes.json();
-        if (Array.isArray(data.requests)) {
-          this.saveVippsRequests(data.requests);
+        const contentType = vippsRes.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await vippsRes.json();
+          if (Array.isArray(data.requests)) {
+            this.saveVippsRequests(data.requests);
+          }
         }
       }
 
@@ -1420,7 +1646,7 @@ export const dataStore = {
 
       return { profilesCount, accountsCount, subscribersCount };
     } catch (err) {
-      console.warn('Sync with server error:', err);
+      console.error('[Sync Error] Failed to synchronize:', err);
       return { profilesCount: 0, accountsCount: 0, subscribersCount: 0 };
     }
   },
