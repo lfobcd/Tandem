@@ -202,7 +202,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
-  const enabledProviders = String((import.meta as any).env?.VITE_OAUTH_PROVIDERS || 'google')
+  const enabledProviders = String((import.meta as any).env?.VITE_OAUTH_PROVIDERS || 'google,facebook')
     .split(',')
     .map((x: string) => x.trim().toLowerCase());
 
