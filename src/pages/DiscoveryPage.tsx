@@ -137,11 +137,17 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   const profiles = useMemo(() => {
     const baseList = profilesProp && profilesProp.length > 0 ? profilesProp : internalProfiles;
     if (currentUser) {
-      const exists = baseList.some((p) => p.id === currentUser.id);
+      const exists = baseList.some(
+        (p) => p.id === currentUser.id || (currentUser.email && p.email && p.email.toLowerCase() === currentUser.email.toLowerCase())
+      );
       if (!exists && (currentUser.prenom || currentUser.is_completed)) {
         return [currentUser, ...baseList];
       }
-      return baseList.map((p) => (p.id === currentUser.id ? currentUser : p));
+      return baseList.map((p) =>
+        (p.id === currentUser.id || (currentUser.email && p.email && p.email.toLowerCase() === currentUser.email.toLowerCase()))
+          ? { ...p, ...currentUser }
+          : p
+      );
     }
     return baseList;
   }, [profilesProp, internalProfiles, currentUser]);
@@ -309,7 +315,12 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   // Filtered profiles
   const filteredProfiles = useMemo(() => {
     const list = profiles.filter((p) => {
-      const isCurrentUser = currentUser && p.id === currentUser.id;
+      const isCurrentUser = Boolean(
+        currentUser && (
+          p.id === currentUser.id ||
+          (currentUser.email && p.email && p.email.toLowerCase() === currentUser.email.toLowerCase())
+        )
+      );
 
       // Current user's profile MUST appear in the visible profiles when completed
       if (isCurrentUser) {
@@ -448,8 +459,15 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
     const sorted = [...list].sort((a, b) => {
       // Prioritize current user at the top of the visible profiles
       if (currentUser) {
-        if (a.id === currentUser.id) return -1;
-        if (b.id === currentUser.id) return 1;
+        const isA = a.id === currentUser.id || (currentUser.email && a.email && a.email.toLowerCase() === currentUser.email.toLowerCase());
+        const isB = b.id === currentUser.id || (currentUser.email && b.email && b.email.toLowerCase() === currentUser.email.toLowerCase());
+        if (isA) return -1;
+        if (isB) return 1;
+      }
+
+      // Prioritize real registered members over demonstration accounts
+      if (Boolean(a.is_factice) !== Boolean(b.is_factice)) {
+        return a.is_factice ? 1 : -1;
       }
 
       if (sortBy === 'favorites_first') {
@@ -1200,7 +1218,12 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProfiles.map((profile) => {
-            const isCurrentUser = Boolean(currentUser && profile.id === currentUser.id);
+            const isCurrentUser = Boolean(
+              currentUser && (
+                profile.id === currentUser.id ||
+                (currentUser.email && profile.email && profile.email.toLowerCase() === currentUser.email.toLowerCase())
+              )
+            );
             const hasPaid = currentUser?.a_paye || false;
             const nativeInfo = getLanguageLabel(profile.langue_maternelle);
             const targetInfo = getLanguageLabel(profile.langue_apprise);

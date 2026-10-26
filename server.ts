@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -22,6 +23,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 async function startServer() {
   const app = express();
+  const httpServer = http.createServer(app);
 
   // Middleware
   app.use(express.json({ limit: '10mb' }));
@@ -207,16 +209,19 @@ async function startServer() {
       res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });
   } else {
-    // Development mode: Vite middleware
+    // Development mode: Vite middleware with proper HMR WebSocket attachment
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
   // Bind to 0.0.0.0 for container accessibility
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`[Tandem Server] Running on http://0.0.0.0:${PORT} (${isProduction ? 'production' : 'development'})`);
   });
 }

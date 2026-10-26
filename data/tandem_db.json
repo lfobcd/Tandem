@@ -152,6 +152,95 @@
   ],
   "profiles": [
     {
+      "id": "user_alex",
+      "email": "alex@tandem.org",
+      "prenom": "Alex",
+      "langue_maternelle": "français",
+      "langue_apprise": "norvégien",
+      "niveau": "B1",
+      "quartier": "Sentrum / Grünerløkka, Oslo",
+      "bio": "Passionné de randonnée dans la Nordmarka et de design scandinave. Je vis à Oslo depuis un an et je cherche un(e) partenaire norvégien(ne) pour papoter en norsk et en français !",
+      "envies": "Échanges décontractés autour d'un café, sorties à vélo ou balades au bord du fjord.",
+      "photo_url": "",
+      "a_paye": true,
+      "is_beta_pioneer": true,
+      "beta_rank": 1,
+      "derniere_activite": "2026-10-26T08:19:59.805Z",
+      "disponibilites": [
+        {
+          "day": "mardi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "jeudi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "samedi",
+          "slots": [
+            "matin",
+            "apres-midi"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user_manager_bcdlfo",
+      "email": "bcdlfo@gmail.com",
+      "prenom": "Admin (bcdlfo)",
+      "langue_maternelle": "français",
+      "langue_apprise": "norvégien",
+      "niveau": "C1",
+      "quartier": "Sentrum, Oslo",
+      "disponibilites": [
+        {
+          "day": "lundi",
+          "slots": [
+            "matin",
+            "apres-midi",
+            "soir"
+          ]
+        },
+        {
+          "day": "mardi",
+          "slots": [
+            "matin",
+            "apres-midi",
+            "soir"
+          ]
+        },
+        {
+          "day": "mercredi",
+          "slots": [
+            "matin",
+            "apres-midi",
+            "soir"
+          ]
+        }
+      ],
+      "envies": "Gestion de la communauté et partenariats Tandem Fransk Norsk Oslo.",
+      "bio": "Compte administrateur et gestionnaire de Tandem Fransk Norsk Oslo.",
+      "photo_url": "",
+      "a_paye": true,
+      "is_completed": true,
+      "is_admin": true,
+      "derniere_activite": "2026-10-26T08:19:59.804Z",
+      "lieux_preferes": [
+        {
+          "id": "place_fuglen",
+          "label": "Café Fuglen (Sentrum)",
+          "latitude": 59.9171,
+          "longitude": 10.7402,
+          "address": "Universitetsgata 2, Oslo",
+          "type": "cafe"
+        }
+      ]
+    },
+    {
       "id": "user_srv_1793002805918_dv4x",
       "email": "test.oslo@tandem.org",
       "prenom": "Magnus",
@@ -537,6 +626,17 @@
     }
   ],
   "newsletterSubscribers": [
+    {
+      "id": "sub_1793004176041_e7s",
+      "email": "testmobile@tandem.org",
+      "prenom": "Camille",
+      "langue_maternelle": "français",
+      "langue": "français",
+      "subscribed_at": "2026-10-26T08:42:56.041Z",
+      "date_inscription": "2026-10-26T08:42:56.041Z",
+      "source": "inscription_compte",
+      "consent": true
+    },
     {
       "id": "sub_1793002805918_5rd",
       "email": "test.oslo@tandem.org",

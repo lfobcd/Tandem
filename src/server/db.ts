@@ -105,7 +105,7 @@ function getDefaultDatabase(): DatabaseSchema {
         },
       },
     ],
-    profiles: [...INITIAL_PROFILES],
+    profiles: [DEFAULT_ADMIN_PROFILE, ...INITIAL_PROFILES],
     newsletterSubscribers: [
       {
         id: 'sub_admin_1',
@@ -160,9 +160,21 @@ class TandemDatabase {
               profile: DEFAULT_ADMIN_PROFILE,
             });
           }
+
+          const profilesList: UserProfile[] = parsed.profiles || [...INITIAL_PROFILES];
+          // Ensure all account profiles are present in profilesList
+          (parsed.accounts || []).forEach((acc: UserAccount) => {
+            const hasProfile = profilesList.some(
+              (p) => p.id === acc.profile.id || (p.email && p.email.toLowerCase() === acc.email.toLowerCase())
+            );
+            if (!hasProfile) {
+              profilesList.unshift(acc.profile);
+            }
+          });
+
           return {
             accounts: parsed.accounts || [],
-            profiles: parsed.profiles || [...INITIAL_PROFILES],
+            profiles: profilesList,
             newsletterSubscribers: parsed.newsletterSubscribers || [],
             vippsRequests: parsed.vippsRequests || [],
             conversations: parsed.conversations || [...INITIAL_CONVERSATIONS],
@@ -194,7 +206,14 @@ class TandemDatabase {
 
   // --- PROFILES & MEMBERS ---
   public getProfiles(): UserProfile[] {
-    return this.data.profiles;
+    const accountProfiles = this.data.accounts.map((a) => a.profile);
+    const accountIds = new Set(accountProfiles.map((p) => p.id));
+    const accountEmails = new Set(accountProfiles.map((p) => (p.email || '').toLowerCase()));
+    const otherProfiles = this.data.profiles.filter(
+      (p) => !accountIds.has(p.id) && !accountEmails.has((p.email || '').toLowerCase())
+    );
+    // Real registered accounts are prioritized at the top of the directory
+    return [...accountProfiles, ...otherProfiles];
   }
 
   public getAccounts(): UserAccount[] {
@@ -213,16 +232,46 @@ class TandemDatabase {
     prenom: string;
     langue_maternelle: 'français' | 'norvégien';
     quartier?: string;
+    niveau?: any;
     newsletterConsent?: boolean;
+    bio?: string;
+    envies?: string;
   }): { success: boolean; user?: UserProfile; error?: string } {
     const cleanEmail = params.email.trim().toLowerCase();
+    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
     const existing = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+
     if (existing) {
-      return { success: false, error: 'Un compte existe déjà avec cette adresse email.' };
+      existing.passwordHash = params.password;
+      existing.profile.prenom = params.prenom.trim();
+      existing.profile.langue_maternelle = params.langue_maternelle;
+      existing.profile.langue_apprise = params.langue_maternelle === 'français' ? 'norvégien' : 'français';
+      if (params.quartier) existing.profile.quartier = params.quartier;
+      if (params.niveau) existing.profile.niveau = params.niveau;
+      if (params.bio) existing.profile.bio = params.bio;
+      if (params.envies) existing.profile.envies = params.envies;
+      existing.profile.is_completed = true;
+      existing.profile.a_paye = true;
+      existing.profile.derniere_activite = new Date().toISOString();
+      if (isOwner) {
+        existing.profile.is_admin = true;
+      }
+
+      // Update in profiles list
+      const pIdx = this.data.profiles.findIndex(
+        (p) => p.id === existing.profile.id || (p.email && p.email.toLowerCase() === cleanEmail)
+      );
+      if (pIdx >= 0) {
+        this.data.profiles[pIdx] = existing.profile;
+      } else {
+        this.data.profiles.unshift(existing.profile);
+      }
+
+      this.save();
+      return { success: true, user: existing.profile };
     }
 
     const isLaunchFree = true; // 1st month launch is free
-    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
 
     const newProfile: UserProfile = {
       id: 'user_srv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
@@ -230,7 +279,7 @@ class TandemDatabase {
       prenom: params.prenom.trim(),
       langue_maternelle: params.langue_maternelle,
       langue_apprise: params.langue_maternelle === 'français' ? 'norvégien' : 'français',
-      niveau: 'A2',
+      niveau: params.niveau || 'A2',
       quartier: params.quartier || 'Sentrum, Oslo',
       disponibilites: [
         { day: 'mardi', slots: ['soir'] },
@@ -238,17 +287,21 @@ class TandemDatabase {
         { day: 'samedi', slots: ['matin'] },
       ],
       envies:
-        params.langue_maternelle === 'français'
+        params.envies ||
+        (params.langue_maternelle === 'français'
           ? "Conversations informelles autour d'un café et échange culturel."
-          : 'Uformelle samtaler over en kaffe og kulturutveksling.',
-      bio: `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
-        params.langue_maternelle === 'français' ? 'norvégien' : 'français'
-      } !`,
+          : 'Uformelle samtaler over en kaffe og kulturutveksling.'),
+      bio:
+        params.bio ||
+        `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
+          params.langue_maternelle === 'français' ? 'norvégien' : 'français'
+        } à Oslo !`,
       photo_url: '',
       a_paye: true, // 1st launch month free for everyone
       is_beta_pioneer: true,
       beta_rank: this.data.accounts.length + 1,
       is_admin: isOwner ? true : undefined,
+      is_completed: true,
       derniere_activite: new Date().toISOString(),
       created_at: new Date().toISOString(),
       newsletter_subscribed: params.newsletterConsent !== false,
@@ -271,7 +324,7 @@ class TandemDatabase {
     };
 
     this.data.accounts.unshift(newAccount);
-    // Also place in profiles list so they immediately appear in discovery
+    // Place in profiles list so they immediately appear in discovery
     this.data.profiles.unshift(newProfile);
 
     // Save newsletter subscriber
@@ -304,10 +357,26 @@ class TandemDatabase {
       existing.profile.derniere_activite = new Date().toISOString();
       if (params.prenom) existing.profile.prenom = params.prenom;
       if (params.photo_url) existing.profile.photo_url = params.photo_url;
+      if (params.langue_maternelle) {
+        existing.profile.langue_maternelle = params.langue_maternelle;
+        existing.profile.langue_apprise = params.langue_maternelle === 'français' ? 'norvégien' : 'français';
+      }
+      existing.profile.is_completed = true;
+      existing.profile.a_paye = true;
       if (isOwner) {
         existing.profile.is_admin = true;
-        existing.profile.a_paye = true;
       }
+
+      // Ensure it is in profiles list
+      const pIdx = this.data.profiles.findIndex(
+        (p) => p.id === existing.profile.id || (p.email && p.email.toLowerCase() === cleanEmail)
+      );
+      if (pIdx >= 0) {
+        this.data.profiles[pIdx] = existing.profile;
+      } else {
+        this.data.profiles.unshift(existing.profile);
+      }
+
       this.save();
       return { success: true, user: existing.profile };
     }

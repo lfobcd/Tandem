@@ -125,11 +125,51 @@ export const supabaseAuth = {
     if (existing) {
       existing.profile.derniere_activite = new Date().toISOString();
       if (userData?.prenom) existing.profile.prenom = userData.prenom.trim();
+      if (userData?.langue_maternelle) {
+        existing.profile.langue_maternelle = userData.langue_maternelle;
+        existing.profile.langue_apprise = userData.langue_maternelle === 'français' ? 'norvégien' : 'français';
+      }
       if (targetEmail.toLowerCase() === 'bcdlfo@gmail.com') {
         existing.profile.is_admin = true;
         existing.profile.a_paye = true;
       }
+      existing.profile.is_completed = true;
+      existing.profile.a_paye = true;
+
+      // Update accounts store
+      dataStore.saveAccounts(accounts);
+
+      // Guarantee presence in visible profiles list
+      const profiles = dataStore.getProfiles();
+      const pIdx = profiles.findIndex((p) => p.id === existing.profile.id || (p.email && p.email.toLowerCase() === targetEmail));
+      if (pIdx >= 0) {
+        profiles[pIdx] = existing.profile;
+      } else {
+        profiles.unshift(existing.profile);
+      }
+      dataStore.saveProfiles(profiles);
+
       dataStore.setCurrentUser(existing.profile);
+
+      // Persist to central server database immediately
+      try {
+        fetch('/api/oauth-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider,
+            email: targetEmail,
+            prenom: existing.profile.prenom,
+            langue_maternelle: existing.profile.langue_maternelle,
+            photo_url: targetPhoto,
+          }),
+        }).catch((e) => console.warn('OAuth sync warning:', e));
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+      }
+
       return { success: true, user: existing.profile };
     }
 
@@ -665,6 +705,58 @@ export const dataStore = {
     } catch {}
 
     return { success: true, user: newProfile };
+  },
+
+  async registerAccountAsync(params: {
+    email: string;
+    password: string;
+    prenom: string;
+    langue_maternelle: 'français' | 'norvégien';
+    quartier?: string;
+    niveau?: any;
+    newsletterConsent?: boolean;
+    bio?: string;
+    envies?: string;
+  }): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        // Update local accounts
+        const accounts = this.getAccounts();
+        const aIdx = accounts.findIndex((a) => a.email.toLowerCase() === params.email.trim().toLowerCase());
+        const accItem: UserAccount = {
+          email: params.email.trim(),
+          passwordHash: params.password,
+          profile: data.user,
+        };
+        if (aIdx >= 0) accounts[aIdx] = accItem;
+        else accounts.unshift(accItem);
+        this.saveAccounts(accounts);
+
+        // Update local profiles
+        const profiles = this.getProfiles();
+        const pIdx = profiles.findIndex((p) => p.id === data.user.id || (p.email && p.email.toLowerCase() === params.email.trim().toLowerCase()));
+        if (pIdx >= 0) profiles[pIdx] = data.user;
+        else profiles.unshift(data.user);
+        this.saveProfiles(profiles);
+
+        this.setCurrentUser(data.user);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+        }
+        return { success: true, user: data.user };
+      } else if (data.error) {
+        return { success: false, error: data.error };
+      }
+    } catch (e) {
+      console.warn('Network registration error, using local fallback:', e);
+    }
+    return this.registerAccount(params);
   },
 
   loginAccount(email: string, password: string): { success: boolean; user?: UserProfile; error?: string; notFound?: boolean } {

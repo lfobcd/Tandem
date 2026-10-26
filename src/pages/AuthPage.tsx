@@ -12,7 +12,10 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle2,
-  Flame,
+  Eye,
+  EyeOff,
+  MapPin,
+  Globe,
 } from 'lucide-react';
 import { TermsModal } from '../components/TermsModal';
 import { SocialAuthModal } from '../components/SocialAuthModal';
@@ -22,6 +25,21 @@ interface AuthPageProps {
   onLoginSuccess: (user: UserProfile, targetPage?: PageView) => void;
   initialMode?: 'login' | 'signup';
 }
+
+const OSLO_NEIGHBORHOODS = [
+  'Sentrum, Oslo',
+  'Grünerløkka, Oslo',
+  'Majorstuen, Oslo',
+  'Frogner, Oslo',
+  'St. Hanshaugen, Oslo',
+  'Gamle Oslo / Bjørvika, Oslo',
+  'Tøyen, Oslo',
+  'Sagene / Torshov, Oslo',
+  'Bislett, Oslo',
+  'Ullern, Oslo',
+  'Nordstrand, Oslo',
+  'Autre quartier, Oslo',
+];
 
 export const AuthPage: React.FC<AuthPageProps> = ({
   onNavigate,
@@ -38,85 +56,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   }, [initialMode]);
 
+  // Form inputs
+  const [prenom, setPrenom] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [prenom, setPrenom] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [langueMaternelle, setLangueMaternelle] = useState<'français' | 'norvégien'>('français');
+  const [quartier, setQuartier] = useState('Sentrum, Oslo');
+  const [niveau, setNiveau] = useState('A2');
+  const [newsletterConsent, setNewsletterConsent] = useState(true);
+
+  // Status & Modals
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [accountNotFound, setAccountNotFound] = useState(false);
   const [accountAlreadyExists, setAccountAlreadyExists] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
-  const [newsletterConsent, setNewsletterConsent] = useState(true);
   const [socialModalProvider, setSocialModalProvider] = useState<'apple' | 'facebook' | 'google' | null>(null);
 
-  // Automatic Google Connection State
-  const [googleEmail, setGoogleEmail] = useState(() => {
-    return (typeof window !== 'undefined' && localStorage.getItem('tandem_last_google_email')) || 'bcdlfo@gmail.com';
-  });
-  const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
-  const [showChangeGoogleEmail, setShowChangeGoogleEmail] = useState(false);
-  const [customGoogleInput, setCustomGoogleInput] = useState('');
-
-  const handleAutomaticGoogleSignIn = async (overrideEmail?: string) => {
-    setError('');
-    setAccountNotFound(false);
-    setAccountAlreadyExists(false);
-    setIsGoogleConnecting(true);
-
-    try {
-      const targetEmail = (overrideEmail || googleEmail).trim().toLowerCase();
-      const prefix = targetEmail.split('@')[0] || 'Utilisateur';
-      const cleanPrenom = prefix.charAt(0).toUpperCase() + prefix.slice(1);
-
-      const res = await supabaseAuth.signInWithOAuth('google', {
-        email: targetEmail,
-        prenom: cleanPrenom,
-        langue_maternelle: langueMaternelle,
-      });
-
-      if (!res.success || !res.user) {
-        throw new Error(
-          res.error ||
-            (locale === 'no'
-              ? 'Kunne ikke koble til Google automatisk.'
-              : 'Échec de la connexion automatique avec Google.')
-        );
-      }
-
-      setGoogleEmail(targetEmail);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('tandem_last_google_email', targetEmail);
-      }
-
-      onLoginSuccess(res.user, 'discovery');
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          (locale === 'no'
-            ? 'Feil under Google-tilkobling.'
-            : 'Erreur lors de la connexion Google.')
-      );
-    } finally {
-      setIsGoogleConnecting(false);
-    }
-  };
-
-  // Trigger dedicated Social Authentication Dialog
-  const handleOpenSocial = (provider: 'google' | 'apple' | 'facebook') => {
-    if (provider === 'google') {
-      handleAutomaticGoogleSignIn(googleEmail);
-      return;
-    }
-    setError('');
-    setAccountNotFound(false);
-    setSocialModalProvider(provider);
-  };
-
-  const handleSocialSuccess = (user: UserProfile) => {
-    onLoginSuccess(user, 'discovery');
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle standard registration or login
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setAccountNotFound(false);
@@ -125,8 +84,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     if (!email.trim() || !password) {
       setError(
         locale === 'no'
-          ? 'Vennligst oppgi e-post og passord.'
-          : 'Veuillez renseigner votre email et mot de passe.'
+          ? 'Vennligst oppgi e-postadresse og passord.'
+          : 'Veuillez renseigner votre email et choisir un mot de passe.'
       );
       return;
     }
@@ -140,142 +99,106 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
-    if (isSignUp) {
-      const res = dataStore.registerAccount({
-        email: email.trim(),
-        password,
-        prenom: prenom.trim(),
-        langue_maternelle: langueMaternelle,
-        quartier: 'Sentrum, Oslo',
-        newsletterConsent: newsletterConsent,
-      });
+    if (password.length < 4) {
+      setError(
+        locale === 'no'
+          ? 'Passordet må ha minst 4 tegn.'
+          : 'Le mot de passe doit comporter au moins 4 caractères.'
+      );
+      return;
+    }
 
-      if (!res.success || !res.user) {
-        if (res.error?.includes('déjà') || res.error?.includes('finnes')) {
-          setAccountAlreadyExists(true);
+    setIsSubmitting(true);
+
+    try {
+      if (isSignUp) {
+        // Asynchronous registration with direct server database sync
+        const res = await dataStore.registerAccountAsync({
+          email: email.trim(),
+          password,
+          prenom: prenom.trim(),
+          langue_maternelle: langueMaternelle,
+          quartier,
+          niveau,
+          newsletterConsent,
+        });
+
+        if (!res.success || !res.user) {
+          setError(
+            res.error ||
+              (locale === 'no'
+                ? 'Kunne ikke opprette konto.'
+                : 'Erreur lors de la création du compte.')
+          );
+          return;
         }
-        setError(res.error || (locale === 'no' ? 'Kunne ikke opprette konto.' : 'Erreur lors de la création du compte.'));
-        return;
-      }
 
-      // Successful registration -> Navigate to discovery
-      onLoginSuccess(res.user, 'discovery');
-    } else {
-      const res = dataStore.loginAccount(email.trim(), password);
-      if (!res.success || !res.user) {
-        if (res.notFound) {
-          setAccountNotFound(true);
+        // Success -> redirect to discovery
+        onLoginSuccess(res.user, 'discovery');
+      } else {
+        // Login
+        const res = dataStore.loginAccount(email.trim(), password);
+        if (!res.success || !res.user) {
+          if (res.notFound) {
+            setAccountNotFound(true);
+          }
+          setError(
+            res.error ||
+              (locale === 'no'
+                ? 'Feil e-postadresse eller passord.'
+                : 'Email ou mot de passe incorrect.')
+          );
+          return;
         }
-        setError(
-          res.error ||
-            (locale === 'no'
-              ? 'Feil e-post eller passord.'
-              : 'Email ou mot de passe incorrect.')
-        );
-        return;
-      }
 
-      // Successful login -> Navigate to discovery
-      onLoginSuccess(res.user, 'discovery');
+        onLoginSuccess(res.user, 'discovery');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Une erreur est survenue lors du traitement.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleQuickDemoLogin = (emailTarget: string) => {
-    setError('');
-    setAccountNotFound(false);
-    const res = dataStore.loginAccount(emailTarget, 'password123');
-    if (res.success && res.user) {
-      onLoginSuccess(res.user, 'discovery');
-    } else {
-      // Create and log in fallback
-      if (emailTarget.includes('astrid')) {
-        const fallbackAstrid = dataStore.getProfiles().find((p) => p.id === 'user_astrid') || {
-          id: 'user_astrid',
-          email: 'astrid@tandem.no',
-          prenom: 'Astrid',
-          is_factice: true,
-          langue_maternelle: 'norvégien',
-          langue_apprise: 'français',
-          niveau: 'B1',
-          quartier: 'Grünerløkka, Oslo',
-          bio: 'Hei! J\'adore discuter de culture et de cinéma autour d\'un café.',
-          envies: 'Échanges en français et en norvégien.',
-          photo_url: '/images/portrait_norwegian_woman_1790239297890.jpg',
-          a_paye: true,
-          derniere_activite: new Date().toISOString(),
-          disponibilites: [{ day: 'mardi', slots: ['soir'] }],
-        };
-        dataStore.setCurrentUser({ ...fallbackAstrid, a_paye: true });
-        onLoginSuccess({ ...fallbackAstrid, a_paye: true }, 'discovery');
-      } else {
-        const fallbackAlex: UserProfile = {
-          id: 'user_alex',
-          email: 'alex@tandem.org',
-          prenom: 'Alex',
-          langue_maternelle: 'français',
-          langue_apprise: 'norvégien',
-          niveau: 'A2',
-          quartier: 'Sentrum, Oslo',
-          bio: "Hei! J'apprends le norvégien à Oslo. Prêt pour des tandems sympas autour d'un café !",
-          envies: 'Échanges en français et en norvégien.',
-          photo_url: '',
-          a_paye: true,
-          is_beta_pioneer: true,
-          beta_rank: 1,
-          derniere_activite: new Date().toISOString(),
-          disponibilites: [{ day: 'mardi', slots: ['soir'] }],
-        };
-        dataStore.setCurrentUser(fallbackAlex);
-        onLoginSuccess(fallbackAlex, 'discovery');
-      }
-    }
+  const handleSocialSuccess = (user: UserProfile) => {
+    onLoginSuccess(user, 'discovery');
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-8 sm:py-12">
-      <div className="bg-white rounded-3xl border border-[#E5E1D8] shadow-xs p-6 sm:p-8 space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <span className="font-display text-2xl font-normal text-[#1F2421]">
-            {isSignUp ? t.authTitleSignUp : t.authTitleLogin}
-          </span>
-          <p className="text-xs text-[#525E56] leading-relaxed">
-            {isSignUp ? t.authSubtitleSignUp : t.authSubtitleLogin}
-          </p>
-        </div>
-
-        {/* Official Launch Month 100% Free Offer Banner */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-[#FFFDF8] to-amber-50 border border-emerald-300 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#2E4A3D] text-white shrink-0 shadow-xs">
-                <Flame className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              </span>
-              <span className="text-xs font-bold text-[#1F2421]">
-                {locale === 'no' ? 'Offisiell lansering: 1. måned 100% gratis' : 'Lancement officiel : 1er mois 100% gratuit'}
-              </span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-bold">
-              {locale === 'no' ? '0 kr (Verdi 39 kr)' : '0 NOK (au lieu de 39)'}
-            </span>
-          </div>
-
-          <p className="text-[11px] text-[#525E56] leading-snug">
+    <div className="max-w-md mx-auto px-4 py-8 sm:py-12 space-y-6">
+      {/* Header and Offer Badge */}
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/90 text-emerald-900 border border-emerald-300 text-xs font-semibold shadow-2xs">
+          <span>🎁</span>
+          <span>
             {locale === 'no'
-              ? `Alle som oppretter profil denne måneden får ubegrenset tilgang gratis for alltid! ${betaStats.daysRemaining} dager igjen av tilbudet (${betaStats.registeredCount} medlemmer registrert).`
-              : `Tous les membres qui s'inscrivent ce mois-ci bénéficient de la gratuité totale et illimitée ! Plus que ${betaStats.daysRemaining} jours de gratuité (${betaStats.registeredCount} membres inscrits).`}
-          </p>
-
-          <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-[#2E4A3D] rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.max(10, betaStats.progressPercent))}%` }}
-            />
-          </div>
+              ? '1. måned 100% gratis (0 kr i stedet for 39 kr)'
+              : '1er mois 100% offert (0 NOK au lieu de 39)'}
+          </span>
         </div>
+        <h1 className="font-display text-2xl sm:text-3xl font-normal text-[#1F2421]">
+          {isSignUp
+            ? locale === 'no'
+              ? 'Bli med i Tandem Oslo'
+              : 'Rejoindre Tandem Oslo'
+            : locale === 'no'
+            ? 'Velkommen tilbake'
+            : 'Bon retour parmi nous'}
+        </h1>
+        <p className="text-xs text-[#525E56] max-w-sm mx-auto">
+          {isSignUp
+            ? locale === 'no'
+              ? 'Opprett profilen din på 1 minutt og finn en samtalepartner i Oslo.'
+              : 'Créez votre profil en 1 minute et commencez à échanger avec un binôme à Oslo.'
+            : locale === 'no'
+            ? 'Logg inn for å få tilgang til dine samtaler og meldinger.'
+            : 'Connectez-vous pour retrouver vos messages et vos binômes.'}
+        </p>
+      </div>
 
-        {/* Toggle between Inscription and Connexion */}
-        <div className="flex p-1 bg-[#F5F2EB] rounded-xl text-xs font-medium">
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#E5E1D8] shadow-sm space-y-5">
+        {/* Inscription vs Connexion Tabs */}
+        <div className="flex p-1 bg-[#F5F2EB] rounded-2xl text-xs font-medium">
           <button
             type="button"
             onClick={() => {
@@ -284,13 +207,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               setAccountNotFound(false);
               setAccountAlreadyExists(false);
             }}
-            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+            className={`flex-1 py-2.5 rounded-xl transition-all cursor-pointer text-center ${
               isSignUp
                 ? 'bg-white text-[#1F2421] shadow-xs font-semibold'
                 : 'text-[#717A74] hover:text-[#1F2421]'
             }`}
           >
-            {t.authTabSignUp}
+            {locale === 'no' ? 'Opprett profil (Gratis)' : 'Créer un profil (Gratuit)'}
           </button>
           <button
             type="button"
@@ -300,31 +223,31 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               setAccountNotFound(false);
               setAccountAlreadyExists(false);
             }}
-            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+            className={`flex-1 py-2.5 rounded-xl transition-all cursor-pointer text-center ${
               !isSignUp
                 ? 'bg-white text-[#1F2421] shadow-xs font-semibold'
                 : 'text-[#717A74] hover:text-[#1F2421]'
             }`}
           >
-            {t.authTabLogin}
+            {locale === 'no' ? 'Logg inn' : 'Déjà inscrit'}
           </button>
         </div>
 
-        {/* Dynamic Helpful Notice if Account Not Found in Login */}
+        {/* Helpful Notifications */}
         {accountNotFound && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2.5 text-xs text-amber-950">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2 text-xs text-amber-950">
             <div className="flex items-center gap-2 font-semibold">
               <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
                 {locale === 'no'
                   ? 'Ingen konto funnet med denne e-posten.'
-                  : "Aucun compte n'a été trouvé avec cet email."}
+                  : "Aucun compte trouvé avec cet email."}
               </span>
             </div>
-            <p className="text-[11px] text-amber-800 leading-normal">
+            <p className="text-[11px] text-amber-800">
               {locale === 'no'
-                ? 'Ønsker du å opprette kontoen din nå? Vi har beholdt e-posten din!'
-                : "Vous n'avez pas encore de compte ? Cliquez ci-dessous pour créer votre profil en 1 clic :"}
+                ? 'Klikk nedenfor for å opprette profilen din direkte.'
+                : 'Cliquez ci-dessous pour créer votre profil gratuitement :'}
             </p>
             <button
               type="button"
@@ -335,293 +258,49 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               }}
               className="w-full py-2 px-3 bg-[#2E4A3D] text-white rounded-xl font-medium hover:bg-[#23382E] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
             >
-              <span>{locale === 'no' ? 'Opprett konto med denne e-posten' : 'Créer mon compte avec cet email'}</span>
+              <span>{locale === 'no' ? 'Opprett kontoen min' : 'Créer mon compte'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* Dynamic Notice if Account Already Exists in SignUp */}
-        {accountAlreadyExists && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2.5 text-xs text-emerald-950">
-            <div className="flex items-center gap-2 font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>
-                {locale === 'no'
-                  ? 'En konto finnes allerede med denne e-posten.'
-                  : 'Un compte existe déjà avec cette adresse e-mail.'}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(false);
-                setError('');
-                setAccountAlreadyExists(false);
-              }}
-              className="w-full py-2 px-3 bg-[#2E4A3D] text-white rounded-xl font-medium hover:bg-[#23382E] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-            >
-              <span>{locale === 'no' ? 'Logg inn på kontoen din' : 'Se connecter avec ce compte'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* General Error Banner */}
-        {error && !accountNotFound && !accountAlreadyExists && (
-          <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-start gap-2">
+        {/* Error Banner */}
+        {error && !accountNotFound && (
+          <div className="p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
-            <span>{error}</span>
+            <span className="leading-snug">{error}</span>
           </div>
         )}
 
-        {/* Automatic Google Connection Card */}
-        <div className="p-3.5 bg-gradient-to-r from-blue-50/90 via-[#F9FBFC] to-blue-50/50 border border-blue-200/90 rounded-2xl space-y-2.5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-white border border-blue-100 flex items-center justify-center shadow-xs">
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-[#1F2421]">
-                    {locale === 'no' ? 'Automatisk Google-tilkobling' : 'Connexion Google Automatique'}
-                  </span>
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Prêt" />
-                </div>
-                <span className="text-[11px] text-[#525E56] font-mono">{googleEmail}</span>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
-              Auto 1-Clic
-            </span>
-          </div>
-
-          <button
-            type="button"
-            disabled={isGoogleConnecting}
-            onClick={() => handleAutomaticGoogleSignIn(googleEmail)}
-            className="w-full py-2.5 px-4 bg-[#4285F4] hover:bg-[#3367D6] text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-60"
-          >
-            {isGoogleConnecting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>{locale === 'no' ? 'Kobler til automatisk...' : 'Connexion automatique en cours...'}</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                <span>
-                  {locale === 'no'
-                    ? `Logg inn automatisk med ${googleEmail}`
-                    : `Se connecter automatiquement (${googleEmail})`}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </>
-            )}
-          </button>
-
-          <div className="flex items-center justify-between text-[11px] text-[#717A74] pt-0.5 px-0.5">
-            <span>{locale === 'no' ? 'Ingen passord kreves' : '1-clic direct, sans mot de passe'}</span>
-            <button
-              type="button"
-              onClick={() => setShowChangeGoogleEmail(!showChangeGoogleEmail)}
-              className="text-blue-700 hover:underline cursor-pointer font-medium"
-            >
-              {showChangeGoogleEmail
-                ? (locale === 'no' ? 'Lukk' : 'Fermer')
-                : (locale === 'no' ? 'Annen Google-konto?' : 'Autre compte Google ?')}
-            </button>
-          </div>
-
-          {showChangeGoogleEmail && (
-            <div className="pt-2 border-t border-blue-100 space-y-2 animate-in fade-in duration-150">
-              <label className="text-[11px] text-[#525E56] block">
-                {locale === 'no' ? 'Oppgi din Google-adresse:' : 'Entrez votre adresse Google (Gmail) :'}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={customGoogleInput}
-                  onChange={(e) => setCustomGoogleInput(e.target.value)}
-                  placeholder="votre.compte@gmail.com"
-                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#D5DDD7] rounded-xl focus:outline-none focus:border-[#4285F4]"
-                />
-                <button
-                  type="button"
-                  disabled={isGoogleConnecting}
-                  onClick={() => {
-                    if (customGoogleInput.trim()) {
-                      handleAutomaticGoogleSignIn(customGoogleInput.trim());
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-[#1F2421] text-white rounded-xl text-xs font-medium hover:bg-black transition-colors cursor-pointer shrink-0 disabled:opacity-60"
-                >
-                  {locale === 'no' ? 'Koble til' : 'Connecter'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Other Social Authentication Providers (Apple, Facebook, Google alternative) */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between text-[11px] text-[#717A74] px-1">
-            <span>{locale === 'no' ? 'Eller andre alternativer' : 'Ou autres connexions sociales'}</span>
-            <span className="text-[10px] font-medium text-[#2E4A3D] bg-[#F2F6F3] px-2 py-0.5 rounded-md">
-              Apple · Facebook · Google
-            </span>
-          </div>
-
-          {/* Apple Button */}
-          <button
-            type="button"
-            onClick={() => handleOpenSocial('apple')}
-            className="w-full py-2.5 px-4 bg-black hover:bg-[#1F2421] rounded-xl text-xs font-medium text-white transition-all flex items-center justify-center gap-3 cursor-pointer shadow-xs"
-            title="Connexion sécurisée avec Apple"
-          >
-            <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 170 170">
-              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.67-7.81-11.96-14.34-6.3-9.5-11.22-20.15-14.75-31.95-3.53-11.8-5.3-22.9-5.3-33.3 0-14.54 3.69-26.68 11.07-36.42 7.39-9.74 16.73-14.73 28.02-14.98 4.35 0 9.42 1.25 15.22 3.75 5.8 2.5 9.74 3.75 11.81 3.75 1.74 0 5.76-1.3 12.08-3.9 6.31-2.6 11.41-3.75 15.3-3.46 11.82.63 21.05 4.9 27.69 12.82-10.43 6.32-15.54 15.01-15.32 26.08.22 8.7 3.59 15.98 10.12 21.84 6.53 5.87 14.13 9.13 22.81 9.78-2.39 7.18-5.33 14.24-8.81 21.19zM119.22 31.81c0-7.07 2.61-13.7 7.83-19.89 5.22-6.19 11.74-10.16 19.57-11.92.22 1.3.33 2.5.33 3.6 0 6.96-2.72 13.7-8.15 20.21-5.43 6.52-12 10.55-19.7 12.1-.22-1.3-.33-2.5-.33-3.6z" />
-            </svg>
-            <span>{t.authContinueWithApple}</span>
-          </button>
-
-          {/* Facebook Button */}
-          <button
-            type="button"
-            onClick={() => handleOpenSocial('facebook')}
-            className="w-full py-2.5 px-4 bg-[#1877F2] hover:bg-[#166fe5] rounded-xl text-xs font-medium text-white transition-all flex items-center justify-center gap-3 cursor-pointer shadow-xs"
-            title="Connexion sécurisée avec Facebook"
-          >
-            <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-            </svg>
-            <span>{t.authContinueWithFacebook}</span>
-          </button>
-
-          {/* Google Button (direct 1-click automatic sign-in) */}
-          <button
-            type="button"
-            disabled={isGoogleConnecting}
-            onClick={() => handleAutomaticGoogleSignIn(googleEmail)}
-            className="w-full py-2.5 px-4 bg-white border border-[#D5DDD7] hover:border-[#1F2421] hover:bg-[#FAF8F5] rounded-xl text-xs font-medium text-[#1F2421] transition-all flex items-center justify-center gap-3 cursor-pointer shadow-xs disabled:opacity-60"
-            title="Connexion automatique avec Google"
-          >
-            {isGoogleConnecting ? (
-              <div className="w-4 h-4 border-2 border-[#4285F4] border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-            )}
-            <span>
-              {isGoogleConnecting
-                ? (locale === 'no' ? 'Kobler til automatisk...' : 'Connexion automatique...')
-                : `${t.authContinueWithGoogle} (${googleEmail})`}
-            </span>
-          </button>
-        </div>
-
-        {/* Divider */}
-        <div className="relative flex items-center justify-center">
-          <div className="border-t border-[#E5E1D8] w-full"></div>
-          <span className="bg-white px-3 text-[11px] text-[#8C938E] uppercase tracking-wider whitespace-nowrap">
-            {t.authOrWithEmail}
-          </span>
-        </div>
-
-        {/* Email / Password Form */}
+        {/* MAIN EMAIL & PASSWORD FORM */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Sign Up Fields: Prénom */}
           {isSignUp && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#525E56]">{t.authNameLabel}</label>
-                <div className="relative">
-                  <User className="w-4 h-4 absolute left-3 top-3 text-[#8C938E]" />
-                  <input
-                    type="text"
-                    required
-                    value={prenom}
-                    onChange={(e) => setPrenom(e.target.value)}
-                    placeholder={t.authNamePlaceholder}
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D]"
-                  />
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-[#1F2421]">
+                {locale === 'no' ? 'Fornavn' : 'Votre prénom'} <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3.5 top-3 text-[#8C938E]" />
+                <input
+                  type="text"
+                  required
+                  value={prenom}
+                  onChange={(e) => setPrenom(e.target.value)}
+                  placeholder={locale === 'no' ? 'f.eks. Astrid, Julien...' : 'ex: Julien, Astrid, Sarah...'}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
+                />
               </div>
-
-              {/* Langue Maternelle Selection */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#525E56]">{t.authNativeLangLabel}</label>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setLangueMaternelle('français')}
-                    className={`p-2.5 rounded-xl border text-left font-medium transition-colors cursor-pointer ${
-                      langueMaternelle === 'français'
-                        ? 'border-[#2E4A3D] bg-[#F2F6F3] text-[#2E4A3D]'
-                        : 'border-[#E5E1D8] bg-white text-[#525E56]'
-                    }`}
-                  >
-                    🇫🇷 Français
-                    <span className="block text-[10px] font-normal text-[#717A74] mt-0.5">
-                      {locale === 'no' ? 'Lærer norsk' : 'Apprend le norvégien'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLangueMaternelle('norvégien')}
-                    className={`p-2.5 rounded-xl border text-left font-medium transition-colors cursor-pointer ${
-                      langueMaternelle === 'norvégien'
-                        ? 'border-[#2E4A3D] bg-[#F2F6F3] text-[#2E4A3D]'
-                        : 'border-[#E5E1D8] bg-white text-[#525E56]'
-                    }`}
-                  >
-                    🇳🇴 Norsk
-                    <span className="block text-[10px] font-normal text-[#717A74] mt-0.5">
-                      {locale === 'no' ? 'Lærer fransk' : 'Apprend le français'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </>
+            </div>
           )}
 
+          {/* Email Field */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[#525E56]">{t.authEmailLabel}</label>
+            <label className="text-xs font-medium text-[#1F2421]">
+              {locale === 'no' ? 'E-postadresse' : 'Adresse e-mail'} <span className="text-red-500">*</span>
+            </label>
             <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3 top-3 text-[#8C938E]" />
+              <Mail className="w-4 h-4 absolute left-3.5 top-3 text-[#8C938E]" />
               <input
                 type="email"
                 required
@@ -630,169 +309,241 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   setEmail(e.target.value);
                   setAccountNotFound(false);
                 }}
-                placeholder="votre.email@exemple.com"
-                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D]"
+                placeholder="votre.email@gmail.com"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
               />
             </div>
           </div>
 
+          {/* Password Field with Show/Hide Toggle */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[#525E56]">{t.authPasswordLabel}</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-[#1F2421]">
+                {isSignUp
+                  ? locale === 'no' ? 'Velg et passord' : 'Choisissez votre mot de passe'
+                  : locale === 'no' ? 'Passord' : 'Votre mot de passe'}{' '}
+                <span className="text-red-500">*</span>
+              </label>
+              {isSignUp && (
+                <span className="text-[10px] text-[#717A74]">
+                  {locale === 'no' ? 'min. 4 tegn' : 'au moins 4 caractères'}
+                </span>
+              )}
+            </div>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-3 text-[#8C938E]" />
+              <Lock className="w-4 h-4 absolute left-3.5 top-3 text-[#8C938E]" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
+                minLength={4}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D]"
+                className="w-full pl-10 pr-10 py-2.5 text-sm bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421]"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 p-1 text-[#8C938E] hover:text-[#1F2421] cursor-pointer"
+                title={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
+          {/* Sign Up Language Choice & Neighborhood */}
           {isSignUp && (
-            <div className="space-y-3 pt-1">
-              {/* Newsletter Opt-in Checkbox (Pre-checked, GDPR compliant) */}
-              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#F8FAF7] border border-[#E0E8DF] text-xs">
+            <>
+              {/* Native Language Selector */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-medium text-[#1F2421]">
+                  {locale === 'no' ? 'Ditt morsmål' : 'Votre langue maternelle'} <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setLangueMaternelle('français')}
+                    className={`p-3 rounded-2xl border text-left font-medium transition-all cursor-pointer flex flex-col gap-0.5 ${
+                      langueMaternelle === 'français'
+                        ? 'border-[#2E4A3D] bg-[#F2F6F3] text-[#2E4A3D] ring-2 ring-[#2E4A3D]/20 shadow-xs'
+                        : 'border-[#E5E1D8] bg-[#FAF8F5] text-[#525E56] hover:bg-white'
+                    }`}
+                  >
+                    <span className="font-semibold text-sm">🇫🇷 Français</span>
+                    <span className="text-[10px] text-[#717A74]">
+                      {locale === 'no' ? 'Vil lære norsk' : 'Je veux pratiquer le norvégien'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setLangueMaternelle('norvégien')}
+                    className={`p-3 rounded-2xl border text-left font-medium transition-all cursor-pointer flex flex-col gap-0.5 ${
+                      langueMaternelle === 'norvégien'
+                        ? 'border-[#2E4A3D] bg-[#F2F6F3] text-[#2E4A3D] ring-2 ring-[#2E4A3D]/20 shadow-xs'
+                        : 'border-[#E5E1D8] bg-[#FAF8F5] text-[#525E56] hover:bg-white'
+                    }`}
+                  >
+                    <span className="font-semibold text-sm">🇳🇴 Norsk</span>
+                    <span className="text-[10px] text-[#717A74]">
+                      {locale === 'no' ? 'Vil lære fransk' : 'Je veux pratiquer le français'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Oslo Neighborhood */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#1F2421]">
+                  {locale === 'no' ? 'Bydel i Oslo' : 'Votre quartier à Oslo'}
+                </label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 absolute left-3.5 top-3 text-[#8C938E]" />
+                  <select
+                    value={quartier}
+                    onChange={(e) => setQuartier(e.target.value)}
+                    className="w-full pl-10 pr-8 py-2.5 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421] appearance-none"
+                  >
+                    {OSLO_NEIGHBORHOODS.map((q) => (
+                      <option key={q} value={q}>
+                        {q}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* CEFR Level */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#1F2421]">
+                  {locale === 'no' ? 'Nivå i språket du lærer' : 'Votre niveau dans la langue apprise'}
+                </label>
+                <div className="relative">
+                  <Globe className="w-4 h-4 absolute left-3.5 top-3 text-[#8C938E]" />
+                  <select
+                    value={niveau}
+                    onChange={(e) => setNiveau(e.target.value)}
+                    className="w-full pl-10 pr-8 py-2.5 text-xs bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421] appearance-none"
+                  >
+                    <option value="A1">A1 - Débutant complet (Nybegynner)</option>
+                    <option value="A2">A2 - Premières bases (Litt erfaring) · Recommandé</option>
+                    <option value="B1">B1 - Intermédiaire (Mellomnivå, samtaler)</option>
+                    <option value="B2">B2 - Avancé (Selvstendig)</option>
+                    <option value="C1">C1 - Courant / Bilingue (Flytende)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Newsletter Consent */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[#F8FAF7] border border-[#E0E8DF] text-xs cursor-pointer">
                 <input
                   type="checkbox"
-                  id="newsletter-optin"
                   checked={newsletterConsent}
                   onChange={(e) => setNewsletterConsent(e.target.checked)}
-                  className="mt-0.5 rounded border-[#C5D7C9] text-[#2E4A3D] focus:ring-[#2E4A3D] cursor-pointer"
+                  className="mt-0.5 rounded text-[#2E4A3D] focus:ring-[#2E4A3D]"
                 />
-                <label htmlFor="newsletter-optin" className="text-[#3B473F] leading-snug cursor-pointer select-none">
-                  <strong className="text-[#1F2421] block font-semibold mb-0.5">
-                    {locale === 'no' ? 'Motta Tandem-nyhetsbrevet (anbefalt)' : 'Recevoir la lettre d’information (recommandé)'}
-                  </strong>
-                  <span className="text-[11px] text-[#55635A]">
-                    {locale === 'no'
-                      ? 'Invitasjoner til språktreff i Oslo, kafémøter og tips for å lære fransk og norsk.'
-                      : 'Invitations aux rencontres cafés à Oslo, événements bilingues et conseils d’apprentissage.'}
-                  </span>
-                </label>
-              </div>
-
-              <div className="text-[11px] text-[#717A74] text-center leading-normal">
-                <span>{t.authAgreeTerms} </span>
-                <button
-                  type="button"
-                  onClick={() => setIsTermsOpen(true)}
-                  className="underline text-[#2E4A3D] font-medium hover:text-[#1F2421] cursor-pointer"
-                >
-                  {locale === 'no' ? 'Les vilkår & personvern' : 'Lire les CGU & charte'}
-                </button>
-              </div>
-            </div>
+                <span className="text-[#525E56] leading-snug">
+                  {locale === 'no'
+                    ? 'Hold meg oppdatert om uformelle Tandem-kafeer og språktreff i Oslo.'
+                    : 'Prévenez-moi par email des cafés et rencontres Tandem organisés à Oslo.'}
+                </span>
+              </label>
+            </>
           )}
 
+          {/* Submit Action Button */}
           <button
             type="submit"
-            className="w-full py-3 bg-[#2E4A3D] text-white text-sm font-medium rounded-xl hover:bg-[#23382E] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs mt-2"
+            disabled={isSubmitting}
+            className="w-full py-3 px-4 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-2xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            <span>{isSignUp ? t.authBtnSignUp : t.authBtnLogin}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-
-          {/* Quick tab switch under form */}
-          <div className="text-center pt-1">
-            {isSignUp ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(false);
-                  setError('');
-                }}
-                className="text-xs text-[#525E56] hover:text-[#2E4A3D] cursor-pointer"
-              >
-                {locale === 'no' ? 'Har du allerede en konto? ' : 'Vous avez déjà un compte ? '}
-                <span className="font-semibold underline text-[#2E4A3D]">
-                  {locale === 'no' ? 'Logg inn' : 'Se connecter'}
-                </span>
-              </button>
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>{locale === 'no' ? 'Behandler...' : 'Enregistrement en cours...'}</span>
+              </>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(true);
-                  setError('');
-                }}
-                className="text-xs text-[#525E56] hover:text-[#2E4A3D] cursor-pointer"
-              >
-                {locale === 'no' ? 'Har du ikke konto ennå? ' : "Vous n'avez pas encore de compte ? "}
-                <span className="font-semibold underline text-[#2E4A3D]">
-                  {locale === 'no' ? 'Registrer deg' : "S'inscrire"}
+              <>
+                <span>
+                  {isSignUp
+                    ? locale === 'no'
+                      ? 'Opprett profilen min (100% gratis)'
+                      : 'Créer mon profil (1er mois gratuit)'
+                    : locale === 'no'
+                    ? 'Logg inn'
+                    : 'Se connecter'}
                 </span>
-              </button>
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
-          </div>
+          </button>
         </form>
 
-        <div className="pt-2 border-t border-[#E5E1D8] space-y-3">
-          {/* 1-Click Fast Demo Login for instant testing */}
-          <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E5E1D8] space-y-2">
-            <span className="text-[11px] font-semibold text-[#525E56] block text-center">
-              {locale === 'no' ? '⚡ Hurtigtest (1-klikks testkontoer)' : '⚡ Test rapide (Comptes de test en 1 clic)'}
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('alex@tandem.org')}
-                className="p-2.5 bg-white hover:bg-[#F2EFE9] border border-[#E5E1D8] rounded-xl text-left transition-colors cursor-pointer group shadow-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#1F2421]">Alex (0 kr)</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#F0ECE1] text-[#717A74]">Gratuit</span>
-                </div>
-                <span className="text-[10px] text-[#717A74] block mt-0.5">
-                  {locale === 'no' ? 'Lærer norsk · Ikke betalt' : 'Apprend le norsk · Non payé'}
-                </span>
-              </button>
+        {/* Divider */}
+        <div className="relative flex py-1 items-center">
+          <div className="grow border-t border-[#E5E1D8]"></div>
+          <span className="shrink mx-2 text-[10px] text-[#717A74] uppercase tracking-wider font-semibold">
+            {locale === 'no' ? 'Eller med Google' : 'Ou continuer avec Google'}
+          </span>
+          <div className="grow border-t border-[#E5E1D8]"></div>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('astrid@tandem.no')}
-                className="p-2.5 bg-white hover:bg-[#F2EFE9] border border-[#C5D7C9] rounded-xl text-left transition-colors cursor-pointer group shadow-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#2E4A3D]">Astrid (39 kr)</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#E8EDE6] text-[#2E4A3D] font-medium">Payé ✓</span>
-                </div>
-                <span className="text-[10px] text-[#717A74] block mt-0.5">
-                  {locale === 'no' ? 'Lærer fransk · Full tilgang' : 'Apprend le français · Abonné'}
-                </span>
-              </button>
-            </div>
-          </div>
+        {/* GOOGLE SIGN IN BUTTON */}
+        <button
+          type="button"
+          onClick={() => setSocialModalProvider('google')}
+          className="w-full py-2.5 px-4 bg-white border border-[#D5DDD7] hover:border-[#1F2421] hover:bg-[#FAF8F5] rounded-xl text-xs font-medium text-[#1F2421] transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs"
+        >
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path
+              fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+            />
+          </svg>
+          <span>{locale === 'no' ? 'Fortsett med Google' : 'Continuer avec Google'}</span>
+        </button>
 
-          <p className="text-[11px] text-[#8C938E] flex items-center justify-center gap-1.5 text-center">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#2E4A3D]" />
-            {t.authTrustBadge}
-          </p>
+        {/* Quick Manager login link for bcdlfo@gmail.com */}
+        <div className="pt-2 text-center border-t border-[#F0ECE1]">
           <button
             type="button"
-            onClick={() => onNavigate('discovery')}
-            className="text-xs text-[#2E4A3D] hover:underline cursor-pointer block mx-auto text-center"
+            onClick={() => {
+              const res = dataStore.loginAccount('bcdlfo@gmail.com', 'vipps2026');
+              if (res.success && res.user) {
+                onLoginSuccess(res.user, 'discovery');
+              }
+            }}
+            className="text-[11px] text-[#717A74] hover:text-[#2E4A3D] font-medium transition-colors cursor-pointer"
           >
-            {locale === 'no' ? '← Utforsk profiler i Oslo uten å logge inn' : '← Explorer les tandems à Oslo sans créer de compte'}
+            🛡️ {locale === 'no' ? 'Administrator-innlogging (bcdlfo@gmail.com)' : 'Connexion Responsable (bcdlfo@gmail.com)'}
           </button>
         </div>
       </div>
 
-      {/* Social Auth Modal (Apple, Facebook, Google) */}
+      {/* Social Auth Modal for clean Google/Apple/Facebook pop-up */}
       <SocialAuthModal
-        isOpen={!!socialModalProvider}
+        isOpen={Boolean(socialModalProvider)}
         provider={socialModalProvider}
         onClose={() => setSocialModalProvider(null)}
         onSuccess={handleSocialSuccess}
         initialLang={langueMaternelle}
       />
 
-      <TermsModal
-        isOpen={isTermsOpen}
-        onClose={() => setIsTermsOpen(false)}
-      />
+      {/* Terms and Privacy Modal */}
+      <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
     </div>
   );
 };
