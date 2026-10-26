@@ -74,210 +74,155 @@ export const setCustomSupabaseConfig = (url: string, key: string) => {
 // -------------------------------------------------------------
 
 export const supabaseAuth = {
+  /**
+   * Lance une VRAIE connexion OAuth (Google / Facebook / Apple) via Supabase.
+   * L'utilisateur est redirigé vers le fournisseur puis revient sur le site ;
+   * le profil est alors créé par completeOAuthLogin().
+   */
   async signInWithOAuth(
     provider: 'google' | 'facebook' | 'apple',
-    userData?: {
-      email?: string;
-      prenom?: string;
-      langue_maternelle?: 'français' | 'norvégien';
-      photo_url?: string;
-    }
-  ): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-    // 1. If live Supabase is configured, attempt background sync / oauth if possible
+    options?: { langue_maternelle?: 'français' | 'norvégien' }
+  ): Promise<{ success: boolean; error?: string }> {
     const supabase = getSupabase();
-    if (supabase && hasLiveSupabaseConfig()) {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: provider,
-          options: {
-            redirectTo: window.location.origin,
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'consent',
-            },
-          },
-        });
-        if (error) {
-          console.warn(`Supabase ${provider} OAuth warning (fallback will handle session):`, error.message);
-        }
-      } catch (err: any) {
-        console.warn(`Supabase ${provider} OAuth error (fallback will handle session):`, err);
-      }
+    if (!supabase || !hasLiveSupabaseConfig()) {
+      return {
+        success: false,
+        error:
+          "La connexion sociale n'est pas disponible : la base de données Supabase n'est pas configurée (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).",
+      };
     }
-
-    // 2. Guaranteed session creation / login
-    await new Promise((r) => setTimeout(r, 350));
-
-    const storedGoogle = (typeof window !== 'undefined' && localStorage.getItem('tandem_last_google_email')) || 'bcdlfo@gmail.com';
-    const googleUserPart = storedGoogle.split('@')[0] || 'Utilisateur';
-    const cleanGoogleName = googleUserPart.charAt(0).toUpperCase() + googleUserPart.slice(1);
-
-    const providerDefaults: Record<string, { prenom: string; email: string; avatar: string }> = {
-      google: {
-        prenom: cleanGoogleName,
-        email: storedGoogle,
-        avatar: '/images/portrait_french_man_1790239308331.jpg',
-      },
-      apple: {
-        prenom: 'Camille A.',
-        email: 'camille.apple@privaterelay.appleid.com',
-        avatar: '/images/portrait_norwegian_woman_1790239297890.jpg',
-      },
-      facebook: {
-        prenom: 'Henrik F.',
-        email: 'henrik.facebook@tandem.oslo',
-        avatar: '',
-      },
-    };
-
-    const targetPrenom = userData?.prenom?.trim() || providerDefaults[provider].prenom;
-    const targetEmail = userData?.email?.trim().toLowerCase() || providerDefaults[provider].email;
-    const targetLang = userData?.langue_maternelle || 'français';
-    const targetPhoto = userData?.photo_url || providerDefaults[provider].avatar;
-
-    if (provider === 'google' && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('tandem_last_google_email', targetEmail);
-      } catch {}
-    }
-
-    // Check if account already exists with this email
-    const accounts = dataStore.getAccounts();
-    const existing = accounts.find((a) => a.email.toLowerCase() === targetEmail);
-
-    if (existing) {
-      existing.profile.derniere_activite = new Date().toISOString();
-      if (userData?.prenom) existing.profile.prenom = userData.prenom.trim();
-      if (userData?.langue_maternelle) {
-        existing.profile.langue_maternelle = userData.langue_maternelle;
-        existing.profile.langue_apprise = userData.langue_maternelle === 'français' ? 'norvégien' : 'français';
+    try {
+      if (options?.langue_maternelle) {
+        localStorage.setItem('tandem_oauth_lang', options.langue_maternelle);
       }
-      if (targetEmail.toLowerCase() === 'bcdlfo@gmail.com') {
-        existing.profile.is_admin = true;
-        existing.profile.a_paye = true;
-      }
-      existing.profile.is_completed = true;
-      existing.profile.a_paye = true;
-
-      // Update accounts store
-      dataStore.saveAccounts(accounts);
-
-      // Guarantee presence in visible profiles list
-      const profiles = dataStore.getProfiles();
-      const pIdx = profiles.findIndex((p) => p.id === existing.profile.id || (p.email && p.email.toLowerCase() === targetEmail));
-      if (pIdx >= 0) {
-        profiles[pIdx] = existing.profile;
-      } else {
-        profiles.unshift(existing.profile);
-      }
-      dataStore.saveProfiles(profiles);
-
-      dataStore.setCurrentUser(existing.profile);
-
-      // Persist to central server database immediately
-      try {
-        fetch('/api/oauth-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider,
-            email: targetEmail,
-            prenom: existing.profile.prenom,
-            langue_maternelle: existing.profile.langue_maternelle,
-            photo_url: targetPhoto,
-          }),
-        }).catch((e) => console.warn('OAuth sync warning:', e));
-      } catch {}
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
-      }
-
-      return { success: true, user: existing.profile };
-    }
-
-    const isManagerAccount = targetEmail.toLowerCase() === 'bcdlfo@gmail.com';
-    const isLaunchFree = dataStore.getLaunchOfferStats().isLaunchMonthActive;
-
-    // Otherwise create brand new user profile
-    const newUser: UserProfile = {
-      id: `user_${provider}_${Date.now()}`,
-      email: targetEmail,
-      prenom: isManagerAccount ? (targetPrenom || 'Gestionnaire') : targetPrenom,
-      langue_maternelle: targetLang,
-      langue_apprise: targetLang === 'français' ? 'norvégien' : 'français',
-      niveau: 'A2',
-      quartier: 'Sentrum, Oslo',
-      disponibilites: [
-        { day: 'mardi', slots: ['soir'] },
-        { day: 'jeudi', slots: ['soir'] },
-        { day: 'samedi', slots: ['matin'] },
-      ],
-      envies:
-        targetLang === 'français'
-          ? "Conversations conviviales autour d'un café et découverte d'Oslo."
-          : 'Uformelle samtaler over en kaffe og kulturutveksling.',
-      bio: isManagerAccount
-        ? "Profil gestionnaire administrateur de Tandem Fransk Norsk Oslo."
-        : `Hei! Je m'appelle ${targetPrenom} et je suis ravi(e) de pratiquer le ${
-            targetLang === 'français' ? 'norvégien' : 'français'
-          } avec Tandem !`,
-      photo_url: targetPhoto,
-      a_paye: isManagerAccount ? true : (isLaunchFree ? true : false),
-      is_beta_pioneer: isLaunchFree ? true : undefined,
-      beta_rank: accounts.length + 1,
-      is_admin: isManagerAccount ? true : undefined,
-      derniere_activite: new Date().toISOString(),
-      newsletter_subscribed: true,
-      lieux_preferes: [
-        {
-          id: `place_${provider}_${Date.now()}`,
-          label: 'Café Fuglen (Sentrum)',
-          latitude: 59.9171,
-          longitude: 10.7402,
-          address: 'Universitetsgata 2, Oslo',
-          type: 'cafe',
-        },
-      ],
-    };
-
-    // Auto-collect email for the future newsletter
-    dataStore.subscribeNewsletter({
-      email: targetEmail,
-      prenom: targetPrenom,
-      langue_maternelle: targetLang,
-      source: provider === 'google' ? 'google_oauth' : 'social_oauth',
-      consent: true,
+    } catch {}
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
     });
+    if (error) {
+      console.error(`[Supabase OAuth ${provider}]`, error);
+      return { success: false, error: error.message };
+    }
+    // Le navigateur est redirigé vers le fournisseur : rien d'autre à faire ici.
+    return { success: true };
+  },
 
-    const newAccount: UserAccount = {
-      email: targetEmail,
-      passwordHash: `oauth_${provider}_${Date.now()}`,
-      profile: newUser,
-    };
+  /**
+   * À appeler au chargement du site et sur onAuthStateChange : si une session
+   * Supabase existe (retour d'OAuth), crée ou retrouve le profil dans la table
+   * `profiles` et connecte l'utilisateur dans l'app.
+   */
+  async completeOAuthLogin(): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+    const supabase = getSupabase();
+    if (!supabase || !hasLiveSupabaseConfig()) return { success: false };
 
-    accounts.push(newAccount);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const authUser = sessionData?.session?.user;
+    if (!authUser) return { success: false };
+
+    const email = (authUser.email || '').trim().toLowerCase();
+    if (!email) {
+      console.error('[OAuth] Le fournisseur ne fournit pas d\'email.', authUser);
+      return {
+        success: false,
+        error: "Le fournisseur n'a pas communiqué votre adresse email. Inscrivez-vous avec votre email.",
+      };
+    }
+
+    // 1. Profil déjà existant (même email) : on relie le compte au lieu de créer un doublon
+    const { data: existingRows, error: selectError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .limit(1);
+    if (selectError) {
+      console.error('[OAuth] Lecture du profil impossible :', selectError);
+      return { success: false, error: `Base de données : ${selectError.message}` };
+    }
+
+    let profile: UserProfile;
+    if (existingRows && existingRows.length > 0) {
+      profile = { ...(existingRows[0] as UserProfile), derniere_activite: new Date().toISOString() };
+      await supabase.from('profiles').update({ derniere_activite: profile.derniere_activite }).eq('email', email);
+    } else {
+      // 2. Nouveau membre : création du profil
+      let lang: 'français' | 'norvégien' = 'français';
+      try {
+        const stored = localStorage.getItem('tandem_oauth_lang');
+        if (stored === 'norvégien') lang = 'norvégien';
+        localStorage.removeItem('tandem_oauth_lang');
+      } catch {}
+      const meta: any = authUser.user_metadata || {};
+      const fullName: string = meta.full_name || meta.name || email.split('@')[0];
+      const prenom = String(fullName).trim().split(/\s+/)[0] || 'Membre';
+      const isLaunchFree = dataStore.getLaunchOfferStats().isLaunchMonthActive;
+
+      profile = {
+        id: authUser.id,
+        email,
+        prenom,
+        langue_maternelle: lang,
+        langue_apprise: lang === 'français' ? 'norvégien' : 'français',
+        niveau: 'A2',
+        quartier: 'Sentrum, Oslo',
+        disponibilites: [
+          { day: 'mardi', slots: ['soir'] },
+          { day: 'jeudi', slots: ['soir'] },
+          { day: 'samedi', slots: ['matin'] },
+        ],
+        envies:
+          lang === 'français'
+            ? "Conversations conviviales autour d'un café et découverte d'Oslo."
+            : 'Uformelle samtaler over en kaffe og kulturutveksling.',
+        bio: `Hei! Je m'appelle ${prenom} et je souhaite pratiquer le ${
+          lang === 'français' ? 'norvégien' : 'français'
+        } avec Tandem !`,
+        photo_url: meta.avatar_url || meta.picture || '',
+        a_paye: isLaunchFree,
+        is_beta_pioneer: isLaunchFree,
+        beta_rank: 1,
+        is_completed: true,
+        derniere_activite: new Date().toISOString(),
+        newsletter_subscribed: true,
+        lieux_preferes: [
+          {
+            id: 'place_oauth_' + Date.now(),
+            label: 'Café Fuglen (Sentrum)',
+            latitude: 59.9171,
+            longitude: 10.7402,
+            address: 'Universitetsgata 2, Oslo',
+            type: 'cafe',
+          },
+        ],
+      };
+
+      const { error: insertError } = await supabase.from('profiles').insert(profile);
+      if (insertError) {
+        console.error('[OAuth] Création du profil impossible :', insertError);
+        return { success: false, error: `Création du profil impossible : ${insertError.message}` };
+      }
+    }
+
+    // 3. Session locale + liste visible du site
+    const accounts = dataStore.getAccounts();
+    const idx = accounts.findIndex((a) => a.email.toLowerCase() === email);
+    const acc: UserAccount = { email, passwordHash: `oauth_${authUser.app_metadata?.provider || 'social'}`, profile };
+    if (idx >= 0) accounts[idx] = acc;
+    else accounts.unshift(acc);
     dataStore.saveAccounts(accounts);
 
-    // Save as active logged-in user
-    dataStore.setCurrentUser(newUser);
+    const profiles = dataStore.getProfiles();
+    const pIdx = profiles.findIndex((p) => p.id === profile.id || (p.email && p.email.toLowerCase() === email));
+    if (pIdx >= 0) profiles[pIdx] = profile;
+    else profiles.unshift(profile);
+    dataStore.saveProfiles(profiles);
 
-    // Persist to central server database
-    try {
-      fetch('/api/oauth-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          email: targetEmail,
-          prenom: targetPrenom,
-          langue_maternelle: targetLang,
-          photo_url: targetPhoto,
-        }),
-      }).catch((e) => console.warn('OAuth server sync notice:', e));
-    } catch {}
-
-    return { success: true, user: newUser };
+    dataStore.setCurrentUser(profile);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+    }
+    return { success: true, user: profile };
   },
 
   async signOut(): Promise<void> {
@@ -818,6 +763,7 @@ export const dataStore = {
 
         if (authError && !authError.message.toLowerCase().includes('already registered')) {
           console.error('[Supabase Auth signUp Error]', authError);
+          return { success: false, error: `Création du compte impossible : ${authError.message}` };
         }
 
         const userId = authData?.user?.id || `user_sp_${Date.now()}`;
@@ -867,9 +813,13 @@ export const dataStore = {
         const { error: insertError } = await supabase.from('profiles').upsert(supaProfile);
         if (insertError) {
           console.error('[Supabase Profiles Insert Error]', insertError);
-        } else {
-          console.log('[Supabase DB] Profile created successfully in Supabase!');
+          // IMPORTANT : on n'affiche plus "Inscription réussie" si la base a refusé l'écriture
+          return {
+            success: false,
+            error: `L'inscription n'a pas pu être enregistrée dans la base de données (${insertError.message}).`,
+          };
         }
+        console.log('[Supabase DB] Profile created successfully in Supabase!');
 
         // Save locally and set current user
         const pwdHash = await hashPassword(params.password);
@@ -899,6 +849,7 @@ export const dataStore = {
         return { success: true, user: supaProfile };
       } catch (supaErr: any) {
         console.error('[Supabase Registration Exception]', supaErr);
+        return { success: false, error: `Erreur réseau avec la base de données : ${supaErr?.message || supaErr}` };
       }
     }
 
@@ -948,7 +899,17 @@ export const dataStore = {
       console.warn('Network registration API unavailable, using store:', e);
     }
 
-    // 4. FALLBACK STORE (with hashed password and event dispatch)
+    // 4. Sur le site en ligne, sans base configurée, on REFUSE l'inscription au lieu de
+    //    l'enregistrer silencieusement dans le navigateur du visiteur (elle serait perdue).
+    const isLocalHost = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+    if (!isLocalHost) {
+      console.error('[Registration] Aucune base de données configurée : définir VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY sur Vercel puis redéployer.');
+      return {
+        success: false,
+        error: "Le service d'inscription est momentanément indisponible (base de données non configurée). Merci de réessayer plus tard.",
+      };
+    }
+    // Mode démo local (développement uniquement)
     return await this.registerAccount(params);
   },
 
