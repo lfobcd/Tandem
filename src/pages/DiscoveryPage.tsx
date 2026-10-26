@@ -121,7 +121,17 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   onStartChat,
 }) => {
   const { t, locale } = useTranslation();
-  const [internalProfiles] = useState<UserProfile[]>(() => dataStore.getProfiles());
+  const [internalProfiles, setInternalProfiles] = useState<UserProfile[]>(() => dataStore.getProfiles());
+
+  // Listen to real-time server database updates
+  useEffect(() => {
+    const handleUpdate = () => {
+      setInternalProfiles(dataStore.getProfiles());
+    };
+    window.addEventListener('tandem_profiles_updated', handleUpdate);
+    dataStore.syncWithServer();
+    return () => window.removeEventListener('tandem_profiles_updated', handleUpdate);
+  }, []);
 
   // Dynamic profiles list that includes currentUser when completed
   const profiles = useMemo(() => {
@@ -1231,9 +1241,14 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                               <span>{locale === 'no' ? 'Din profil (Synlig)' : 'Votre profil (Visible)'}</span>
                             </span>
                           )}
-                          {profile.is_factice && (
+                          {profile.is_factice ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
                               {locale === 'no' ? 'Fiktiv profil' : 'Profil factice'}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shrink-0 flex items-center gap-0.5 shadow-2xs">
+                              <span>✨</span>
+                              <span>{locale === 'no' ? 'Nytt medlem' : 'Nouveau membre'}</span>
                             </span>
                           )}
                           {profile.is_beta_pioneer && (

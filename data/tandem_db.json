@@ -1,0 +1,596 @@
+{
+  "accounts": [
+    {
+      "email": "test.oslo@tandem.org",
+      "passwordHash": "pwd",
+      "profile": {
+        "id": "user_srv_1793002805918_dv4x",
+        "email": "test.oslo@tandem.org",
+        "prenom": "Magnus",
+        "langue_maternelle": "norvégien",
+        "langue_apprise": "français",
+        "niveau": "A2",
+        "quartier": "Sentrum, Oslo",
+        "disponibilites": [
+          {
+            "day": "mardi",
+            "slots": [
+              "soir"
+            ]
+          },
+          {
+            "day": "jeudi",
+            "slots": [
+              "soir"
+            ]
+          },
+          {
+            "day": "samedi",
+            "slots": [
+              "matin"
+            ]
+          }
+        ],
+        "envies": "Uformelle samtaler over en kaffe og kulturutveksling.",
+        "bio": "Hei! Je m'appelle Magnus et je souhaite pratiquer le français !",
+        "photo_url": "",
+        "a_paye": true,
+        "is_beta_pioneer": true,
+        "beta_rank": 3,
+        "derniere_activite": "2026-10-26T08:20:05.918Z",
+        "created_at": "2026-10-26T08:20:05.918Z",
+        "newsletter_subscribed": true,
+        "lieux_preferes": [
+          {
+            "id": "place_1793002805918",
+            "label": "Café Fuglen (Sentrum)",
+            "latitude": 59.9171,
+            "longitude": 10.7402,
+            "address": "Universitetsgata 2, Oslo",
+            "type": "cafe"
+          }
+        ]
+      }
+    },
+    {
+      "email": "bcdlfo@gmail.com",
+      "passwordHash": "vipps2026",
+      "profile": {
+        "id": "user_manager_bcdlfo",
+        "email": "bcdlfo@gmail.com",
+        "prenom": "Admin (bcdlfo)",
+        "langue_maternelle": "français",
+        "langue_apprise": "norvégien",
+        "niveau": "C1",
+        "quartier": "Sentrum, Oslo",
+        "disponibilites": [
+          {
+            "day": "lundi",
+            "slots": [
+              "matin",
+              "apres-midi",
+              "soir"
+            ]
+          },
+          {
+            "day": "mardi",
+            "slots": [
+              "matin",
+              "apres-midi",
+              "soir"
+            ]
+          },
+          {
+            "day": "mercredi",
+            "slots": [
+              "matin",
+              "apres-midi",
+              "soir"
+            ]
+          }
+        ],
+        "envies": "Gestion de la communauté et partenariats Tandem Fransk Norsk Oslo.",
+        "bio": "Compte administrateur et gestionnaire de Tandem Fransk Norsk Oslo.",
+        "photo_url": "",
+        "a_paye": true,
+        "is_completed": true,
+        "is_admin": true,
+        "derniere_activite": "2026-10-26T08:19:59.804Z",
+        "lieux_preferes": [
+          {
+            "id": "place_fuglen",
+            "label": "Café Fuglen (Sentrum)",
+            "latitude": 59.9171,
+            "longitude": 10.7402,
+            "address": "Universitetsgata 2, Oslo",
+            "type": "cafe"
+          }
+        ]
+      }
+    },
+    {
+      "email": "alex@tandem.org",
+      "passwordHash": "password123",
+      "profile": {
+        "id": "user_alex",
+        "email": "alex@tandem.org",
+        "prenom": "Alex",
+        "langue_maternelle": "français",
+        "langue_apprise": "norvégien",
+        "niveau": "B1",
+        "quartier": "Sentrum / Grünerløkka, Oslo",
+        "bio": "Passionné de randonnée dans la Nordmarka et de design scandinave. Je vis à Oslo depuis un an et je cherche un(e) partenaire norvégien(ne) pour papoter en norsk et en français !",
+        "envies": "Échanges décontractés autour d'un café, sorties à vélo ou balades au bord du fjord.",
+        "photo_url": "",
+        "a_paye": true,
+        "is_beta_pioneer": true,
+        "beta_rank": 1,
+        "derniere_activite": "2026-10-26T08:19:59.805Z",
+        "disponibilites": [
+          {
+            "day": "mardi",
+            "slots": [
+              "soir"
+            ]
+          },
+          {
+            "day": "jeudi",
+            "slots": [
+              "soir"
+            ]
+          },
+          {
+            "day": "samedi",
+            "slots": [
+              "matin",
+              "apres-midi"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "user_srv_1793002805918_dv4x",
+      "email": "test.oslo@tandem.org",
+      "prenom": "Magnus",
+      "langue_maternelle": "norvégien",
+      "langue_apprise": "français",
+      "niveau": "A2",
+      "quartier": "Sentrum, Oslo",
+      "disponibilites": [
+        {
+          "day": "mardi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "jeudi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "samedi",
+          "slots": [
+            "matin"
+          ]
+        }
+      ],
+      "envies": "Uformelle samtaler over en kaffe og kulturutveksling.",
+      "bio": "Hei! Je m'appelle Magnus et je souhaite pratiquer le français !",
+      "photo_url": "",
+      "a_paye": true,
+      "is_beta_pioneer": true,
+      "beta_rank": 3,
+      "derniere_activite": "2026-10-26T08:20:05.918Z",
+      "created_at": "2026-10-26T08:20:05.918Z",
+      "newsletter_subscribed": true,
+      "lieux_preferes": [
+        {
+          "id": "place_1793002805918",
+          "label": "Café Fuglen (Sentrum)",
+          "latitude": 59.9171,
+          "longitude": 10.7402,
+          "address": "Universitetsgata 2, Oslo",
+          "type": "cafe"
+        }
+      ]
+    },
+    {
+      "id": "user_astrid",
+      "email": "astrid.solberg@example.no",
+      "prenom": "Astrid",
+      "is_factice": true,
+      "langue_maternelle": "norvégien",
+      "langue_apprise": "français",
+      "langues_secondaires": [
+        "anglais"
+      ],
+      "langues_apprises_autres": [
+        "espagnol"
+      ],
+      "niveau": "B1",
+      "quartier": "Grünerløkka, Oslo",
+      "bio": "⚠️ Profil factice de démonstration. Hei! J'ai étudié l'histoire de l'art à Oslo et je prépare un séjour à Lyon. J'adore discuter de cinéma, d'architecture et de culture autour d'un bon café filtre.",
+      "envies": "Conversation informelle détendue, enrichir mon vocabulaire quotidien et corriger les petites fautes naturelles.",
+      "photo_url": "/images/portrait_norwegian_woman_1790239297890.jpg",
+      "a_paye": false,
+      "derniere_activite": "2026-10-26T08:14:59.804Z",
+      "disponibilites": [
+        {
+          "day": "mardi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "jeudi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "samedi",
+          "slots": [
+            "matin",
+            "apres-midi"
+          ]
+        }
+      ],
+      "lieux_preferes": [
+        {
+          "id": "place_astrid_1",
+          "label": "Café Fuglen (Sentrum)",
+          "latitude": 59.9171,
+          "longitude": 10.7402,
+          "address": "Universitetsgata 2, 0164 Oslo",
+          "type": "cafe"
+        },
+        {
+          "id": "place_astrid_2",
+          "label": "Deichman Bjørvika (Bibliothèque)",
+          "latitude": 59.9084,
+          "longitude": 10.7533,
+          "address": "Anne-Cath, Vestlys plass 1, 0150 Oslo",
+          "type": "library"
+        },
+        {
+          "id": "place_astrid_3",
+          "label": "Tim Wendelboe (Grünerløkka)",
+          "latitude": 59.9235,
+          "longitude": 10.7574,
+          "address": "Grüners gate 1, 0552 Oslo",
+          "type": "cafe"
+        }
+      ]
+    },
+    {
+      "id": "user_julien",
+      "email": "julien.moreau@example.fr",
+      "prenom": "Julien",
+      "is_factice": true,
+      "langue_maternelle": "français",
+      "langue_apprise": "norvégien",
+      "langues_secondaires": [
+        "anglais"
+      ],
+      "langues_apprises_autres": [
+        "allemand"
+      ],
+      "niveau": "A2",
+      "quartier": "Majorstuen, Oslo",
+      "bio": "⚠️ Profil factice de démonstration. Bonjour ! Installé à Oslo depuis 9 mois pour travailler dans la tech. Je commence à comprendre les bases du norsk et je cherche un binôme sympa pour progresser.",
+      "envies": "Pratiquer le norsk parlé du quotidien (au supermarché, au travail, ski de fond) en échange de français natif.",
+      "photo_url": "/images/portrait_french_man_1790239308331.jpg",
+      "a_paye": true,
+      "derniere_activite": "2026-10-26T07:44:59.804Z",
+      "disponibilites": [
+        {
+          "day": "lundi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "mercredi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "dimanche",
+          "slots": [
+            "apres-midi"
+          ]
+        }
+      ],
+      "lieux_preferes": [
+        {
+          "id": "place_julien_1",
+          "label": "Kaffebrenneriet Frogner plass",
+          "latitude": 59.9213,
+          "longitude": 10.7071,
+          "address": "Frognerveien 62, 0266 Oslo",
+          "type": "cafe"
+        },
+        {
+          "id": "place_julien_2",
+          "label": "Parc Vigeland (Entrée principale)",
+          "latitude": 59.9242,
+          "longitude": 10.7049,
+          "address": "Nobels gate 32, 0268 Oslo",
+          "type": "park"
+        }
+      ]
+    },
+    {
+      "id": "user_mathilde",
+      "email": "mathilde.laurent@example.fr",
+      "prenom": "Mathilde",
+      "is_factice": true,
+      "langue_maternelle": "français",
+      "langue_apprise": "norvégien",
+      "langues_secondaires": [
+        "anglais"
+      ],
+      "langues_apprises_autres": [
+        "italien"
+      ],
+      "niveau": "B1",
+      "quartier": "St. Hanshaugen, Oslo",
+      "bio": "Hei alle sammen ! Installée à Oslo depuis un an, architecte d'intérieur. J'adore explorer les friperies, courir à St. Hanshaugen et découvrir de nouvelles adresses de café. Je cherche un binôme norvégien pour converser régulièrement.",
+      "envies": "Échanger en toute décontraction, enrichir le vocabulaire du design et de la vie quotidienne.",
+      "photo_url": "",
+      "a_paye": true,
+      "derniere_activite": "2026-10-26T08:04:59.804Z",
+      "disponibilites": [
+        {
+          "day": "mardi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "jeudi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "samedi",
+          "slots": [
+            "apres-midi"
+          ]
+        }
+      ],
+      "lieux_preferes": [
+        {
+          "id": "place_mathilde_1",
+          "label": "Rouleur Bar & Café (St. Hanshaugen)",
+          "latitude": 59.9272,
+          "longitude": 10.7412,
+          "address": "Ullevålsveien 16A, 0171 Oslo",
+          "type": "cafe"
+        },
+        {
+          "id": "place_mathilde_2",
+          "label": "Deichman Bjørvika",
+          "latitude": 59.9084,
+          "longitude": 10.7533,
+          "address": "Anne-Cath, Vestlys plass 1, 0150 Oslo",
+          "type": "library"
+        }
+      ]
+    },
+    {
+      "id": "user_lars",
+      "email": "lars.dahl@example.no",
+      "prenom": "Lars",
+      "is_factice": true,
+      "langue_maternelle": "norvégien",
+      "langue_apprise": "français",
+      "langues_secondaires": [
+        "anglais"
+      ],
+      "langues_apprises_autres": [],
+      "niveau": "B2",
+      "quartier": "Frogner, Oslo",
+      "bio": "Hei! Journalist og litteraturinteressert bosatt på Frogner. Jeg har bodd et semester i Paris og vil gjerne vedlikeholde fransken min med hyggelige samtaler over en god kopp kaffe.",
+      "envies": "Snakke om bøker, samfunn, musikk og fransk kultur i bytte mot norsk dagligtale og grammatikkhjelp.",
+      "photo_url": "/images/portrait_norwegian_student_1790239320759.jpg",
+      "a_paye": true,
+      "derniere_activite": "2026-10-26T07:29:59.804Z",
+      "disponibilites": [
+        {
+          "day": "mercredi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "samedi",
+          "slots": [
+            "matin"
+          ]
+        },
+        {
+          "day": "dimanche",
+          "slots": [
+            "apres-midi"
+          ]
+        }
+      ],
+      "lieux_preferes": [
+        {
+          "id": "place_lars_1",
+          "label": "Pascal Konditori (Tollbugata)",
+          "latitude": 59.9114,
+          "longitude": 10.7431,
+          "address": "Tollbugata 11, 0152 Oslo",
+          "type": "cafe"
+        },
+        {
+          "id": "place_lars_2",
+          "label": "Litteraturhuset (Majorstuen/Sentrum)",
+          "latitude": 59.9198,
+          "longitude": 10.7289,
+          "address": "Wergelandsveien 29, 0167 Oslo",
+          "type": "library"
+        }
+      ]
+    },
+    {
+      "id": "user_celine",
+      "email": "celine.girard@example.fr",
+      "prenom": "Céline",
+      "is_factice": true,
+      "langue_maternelle": "français",
+      "langue_apprise": "norvégien",
+      "langues_secondaires": [
+        "anglais",
+        "espagnol"
+      ],
+      "langues_apprises_autres": [],
+      "niveau": "A1",
+      "quartier": "Sentrum, Oslo",
+      "bio": "Nouvelle arrivante à Oslo pour travailler dans les énergies renouvelables ! Je débute totalement en norvégien et je cherche un(e) partenaire patient(e) pour débuter en douceur.",
+      "envies": "Apprendre les expressions clés, la prononciation du norvégien et faire de belles rencontres.",
+      "photo_url": "",
+      "a_paye": false,
+      "derniere_activite": "2026-10-26T06:19:59.804Z",
+      "disponibilites": [
+        {
+          "day": "mardi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "mercredi",
+          "slots": [
+            "soir"
+          ]
+        }
+      ],
+      "lieux_preferes": [
+        {
+          "id": "place_celine_1",
+          "label": "Kulturhuset (Youngstorget)",
+          "latitude": 59.9149,
+          "longitude": 10.7493,
+          "address": "Youngs gate 6, 0181 Oslo",
+          "type": "cafe"
+        }
+      ]
+    },
+    {
+      "id": "user_henrik",
+      "email": "henrik.lie@example.no",
+      "prenom": "Henrik",
+      "is_factice": true,
+      "langue_maternelle": "norvégien",
+      "langue_apprise": "français",
+      "langues_secondaires": [
+        "anglais"
+      ],
+      "langues_apprises_autres": [],
+      "niveau": "B1",
+      "quartier": "Sagene / Torshov, Oslo",
+      "bio": "Hei! Frilansutvikler som elsker fransk gastronomi og friluftsliv langs Akerselva. Jeg planlegger en tur til Bordeaux i høst og vil gjerne øve på å bestille på restaurant og snakke om hverdagen.",
+      "envies": "Uformell kaféprat, tips om Frankrike og gjensidig språklæring.",
+      "photo_url": "",
+      "a_paye": false,
+      "derniere_activite": "2026-10-26T04:19:59.804Z",
+      "disponibilites": [
+        {
+          "day": "lundi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "jeudi",
+          "slots": [
+            "soir"
+          ]
+        },
+        {
+          "day": "samedi",
+          "slots": [
+            "matin"
+          ]
+        }
+      ],
+      "lieux_preferes": [
+        {
+          "id": "place_henrik_1",
+          "label": "Supreme Roastworks (Grünerløkka)",
+          "latitude": 59.9219,
+          "longitude": 10.7582,
+          "address": "Thorvald Meyers gate 18A, 0555 Oslo",
+          "type": "cafe"
+        }
+      ]
+    }
+  ],
+  "newsletterSubscribers": [
+    {
+      "id": "sub_1793002805918_5rd",
+      "email": "test.oslo@tandem.org",
+      "prenom": "Magnus",
+      "langue_maternelle": "norvégien",
+      "langue": "norvégien",
+      "subscribed_at": "2026-10-26T08:20:05.918Z",
+      "date_inscription": "2026-10-26T08:20:05.918Z",
+      "source": "inscription_compte",
+      "consent": true
+    },
+    {
+      "id": "sub_admin_1",
+      "email": "bcdlfo@gmail.com",
+      "prenom": "Admin",
+      "langue_maternelle": "français",
+      "subscribed_at": "2026-10-26T08:19:59.805Z",
+      "source": "inscription_compte",
+      "consent": true
+    }
+  ],
+  "vippsRequests": [],
+  "conversations": [
+    {
+      "id": "conv_astrid_julien",
+      "participant_ids": [
+        "current_user",
+        "user_astrid"
+      ],
+      "updated_at": "2026-10-26T08:09:59.804Z",
+      "last_message": {
+        "id": "msg_2",
+        "conversation_id": "conv_astrid_julien",
+        "sender_id": "user_astrid",
+        "content": "Hei! Oui avec grand plaisir pour Café Fuglen jeudi à 17h30. Vi snakkes!",
+        "created_at": "2026-10-26T08:09:59.804Z"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1",
+      "conversation_id": "conv_astrid_julien",
+      "sender_id": "current_user",
+      "content": "Bonjour Astrid ! J'ai vu que tu allais souvent au Fuglen Sentrum, serais-tu partante pour un premier café tandem cette semaine ?",
+      "created_at": "2026-10-26T07:49:59.804Z"
+    },
+    {
+      "id": "msg_2",
+      "conversation_id": "conv_astrid_julien",
+      "sender_id": "user_astrid",
+      "content": "Hei! Oui avec grand plaisir pour Café Fuglen jeudi à 17h30. Vi snakkes!",
+      "created_at": "2026-10-26T08:09:59.804Z"
+    }
+  ],
+  "launchStartDate": "2026-10-26T08:19:59.805Z"
+}

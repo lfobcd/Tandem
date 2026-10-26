@@ -199,6 +199,21 @@ export const supabaseAuth = {
     // Save as active logged-in user
     dataStore.setCurrentUser(newUser);
 
+    // Persist to central server database
+    try {
+      fetch('/api/oauth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          email: targetEmail,
+          prenom: targetPrenom,
+          langue_maternelle: targetLang,
+          photo_url: targetPhoto,
+        }),
+      }).catch((e) => console.warn('OAuth server sync notice:', e));
+    } catch {}
+
     return { success: true, user: newUser };
   },
 
@@ -631,10 +646,36 @@ export const dataStore = {
     // Set as current logged-in user
     this.setCurrentUser(newProfile);
 
+    // Persist to central server database immediately
+    try {
+      fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      })
+        .then(async (r) => {
+          if (r.ok) {
+            const data = await r.json();
+            if (data.user && typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+            }
+          }
+        })
+        .catch((e) => console.warn('Server registration notice:', e));
+    } catch {}
+
     return { success: true, user: newProfile };
   },
 
   loginAccount(email: string, password: string): { success: boolean; user?: UserProfile; error?: string; notFound?: boolean } {
+    // Notify server of login activity
+    try {
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      }).catch(() => {});
+    } catch {}
     const accounts = this.getAccounts();
     const account = accounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase());
     if (!account) {
@@ -1206,7 +1247,100 @@ export const dataStore = {
 
     subscribers.unshift(newSub);
     this.saveNewsletterSubscribers(subscribers);
+
+    // Persist newsletter subscriber to server database
+    try {
+      fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          prenom,
+          langue_maternelle: langue,
+          source,
+          consent,
+        }),
+      }).catch((e) => console.warn('Newsletter server sync notice:', e));
+    } catch {}
+
     return { success: true, isNew: true };
+  },
+
+  async syncWithServer(): Promise<{ profilesCount: number; accountsCount: number; subscribersCount: number }> {
+    try {
+      // 1. Sync any local accounts / subscribers to server (in case offline earlier)
+      const localAccounts = this.getAccounts();
+      const localSubs = this.getNewsletterSubscribers();
+      if (localAccounts.length > 0 || localSubs.length > 0) {
+        await fetch('/api/sync-offline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accounts: localAccounts, subscribers: localSubs }),
+        }).catch(() => {});
+      }
+
+      // 2. Pull server profiles
+      const profRes = await fetch('/api/profiles').catch(() => null);
+      let profilesCount = 0;
+      if (profRes && profRes.ok) {
+        const data = await profRes.json();
+        if (Array.isArray(data.profiles) && data.profiles.length > 0) {
+          this.saveProfiles(data.profiles);
+          profilesCount = data.profiles.length;
+        }
+      }
+
+      // 3. Pull server accounts
+      const accRes = await fetch('/api/accounts').catch(() => null);
+      let accountsCount = 0;
+      if (accRes && accRes.ok) {
+        const data = await accRes.json();
+        if (Array.isArray(data.accounts)) {
+          this.saveAccounts(data.accounts);
+          accountsCount = data.accounts.length;
+        }
+      }
+
+      // 4. Pull newsletter subscribers
+      const newsRes = await fetch('/api/newsletter').catch(() => null);
+      let subscribersCount = 0;
+      if (newsRes && newsRes.ok) {
+        const data = await newsRes.json();
+        if (Array.isArray(data.subscribers)) {
+          this.saveNewsletterSubscribers(data.subscribers);
+          subscribersCount = data.subscribers.length;
+        }
+      }
+
+      // 5. Pull VIPPS requests
+      const vippsRes = await fetch('/api/vipps').catch(() => null);
+      if (vippsRes && vippsRes.ok) {
+        const data = await vippsRes.json();
+        if (Array.isArray(data.requests)) {
+          this.saveVippsRequests(data.requests);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+        window.dispatchEvent(new CustomEvent('tandem_newsletter_updated'));
+      }
+
+      return { profilesCount, accountsCount, subscribersCount };
+    } catch (err) {
+      console.warn('Sync with server error:', err);
+      return { profilesCount: 0, accountsCount: 0, subscribersCount: 0 };
+    }
+  },
+
+  async getServerAdminData(): Promise<any> {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return null;
   },
 
   exportNewsletterCSV(): void {
@@ -1243,3 +1377,18 @@ export const dataStore = {
     initStorage();
   },
 };
+
+// Automatic background sync initialization
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    dataStore.syncWithServer();
+  }, 100);
+
+  setInterval(() => {
+    dataStore.syncWithServer();
+  }, 8000);
+
+  window.addEventListener('focus', () => {
+    dataStore.syncWithServer();
+  });
+}

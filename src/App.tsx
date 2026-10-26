@@ -33,6 +33,27 @@ function MainApp() {
 
   useEffect(() => {
     document.title = 'Tandem Franco-Norsk';
+    const handleProfilesUpdate = () => {
+      setProfiles(dataStore.getProfiles());
+      const user = dataStore.getCurrentUser();
+      if (user) setCurrentUser(user);
+    };
+    window.addEventListener('tandem_profiles_updated', handleProfilesUpdate);
+
+    if (window.location.hash === '#admin') {
+      setCurrentPage('admin');
+    }
+    const handleHashChange = () => {
+      if (window.location.hash === '#admin') {
+        setCurrentPage('admin');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('tandem_profiles_updated', handleProfilesUpdate);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   const handleNavigateAuth = (mode: 'login' | 'signup' = 'signup') => {
@@ -46,15 +67,6 @@ function MainApp() {
     if ((page === 'messages' || page === 'profile-create') && !activeUser) {
       handleNavigateAuth('login');
       return;
-    }
-    // Admin page is strictly restricted to bcdlfo@gmail.com or confirmed admin
-    if (page === 'admin') {
-      const isManager = Boolean(
-        activeUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || activeUser?.is_admin
-      );
-      if (!isManager) {
-        return;
-      }
     }
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -260,28 +272,24 @@ function MainApp() {
                 {t.footerTerms}
               </button>
 
-              {/* Réservé STRICTEMENT au profil gestionnaire bcdlfo@gmail.com */}
-              {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
-                <>
-                  <button
-                    onClick={() => navigateTo('admin')}
-                    className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-semibold flex items-center gap-1 bg-[#E8EDE6] px-2.5 py-1 rounded-lg border border-[#D5DDD7]"
-                    title="Espace gestionnaire des souscriptions Vipps"
-                  >
-                    <span>🛡️</span>
-                    <span>{locale === 'no' ? 'Vipps-administrasjon' : 'Espace Gestionnaire Vipps'}</span>
-                  </button>
+              {/* Espace gestionnaire pour le responsable (bcdlfo@gmail.com) */}
+              <button
+                onClick={() => navigateTo('admin')}
+                className="hover:text-[#1F2421] transition-colors cursor-pointer text-[#2E4A3D] font-semibold flex items-center gap-1 bg-[#E8EDE6] px-2.5 py-1 rounded-lg border border-[#D5DDD7]"
+                title="Espace gestionnaire des membres et souscriptions"
+              >
+                <span>🛡️</span>
+                <span>{locale === 'no' ? 'Administrasjon & Medlemmer' : 'Administration & Membres'}</span>
+              </button>
 
-                  <button
-                    onClick={() => setIsLaunchKitOpen(true)}
-                    className="hover:text-[#1F2421] transition-colors cursor-pointer font-semibold text-[#FF5B24] flex items-center gap-1 bg-[#FFF4F0] px-2.5 py-1 rounded-lg border border-[#FFD0C0]"
-                    title="Kit de communication, affiches & flyers pour cafés d'Oslo"
-                  >
-                    <span>🚀</span>
-                    <span>{locale === 'no' ? 'Lanseringskit & Plakat' : 'Kit de lancement & Affiches'}</span>
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => setIsLaunchKitOpen(true)}
+                className="hover:text-[#1F2421] transition-colors cursor-pointer font-semibold text-[#FF5B24] flex items-center gap-1 bg-[#FFF4F0] px-2.5 py-1 rounded-lg border border-[#FFD0C0]"
+                title="Kit de communication, affiches & flyers pour cafés d'Oslo"
+              >
+                <span>🚀</span>
+                <span>{locale === 'no' ? 'Lanseringskit & Plakat' : 'Kit de lancement & Affiches'}</span>
+              </button>
 
               <span>·</span>
               <span>{locale === 'no' ? '39 kr prisen på en kaffe · Uten abonnement' : "39 NOK prix d'un café · Sans abonnement"}</span>
