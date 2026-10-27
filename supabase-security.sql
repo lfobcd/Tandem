@@ -63,3 +63,8 @@ CREATE TRIGGER trg_protect_profile_columns
 DROP POLICY IF EXISTS "Allow newsletter select" ON public.newsletter_subscribers;
 CREATE POLICY "Newsletter lecture gestionnaire" ON public.newsletter_subscribers
   FOR SELECT USING (public.is_admin_user());
+
+-- 5. Suppression de profils : réservée au gestionnaire (la fonction serveur du site utilise la clé "secret")
+DROP POLICY IF EXISTS "Admin delete profiles" ON public.profiles;
+CREATE POLICY "Admin delete profiles" ON public.profiles
+  FOR DELETE USING (public.is_admin_user());

@@ -28,6 +28,7 @@ import {
   Download,
   Mail,
   Copy,
+  Trash2,
 } from 'lucide-react';
 import { NewsletterSubscriber } from '../types';
 
@@ -63,8 +64,12 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
   );
 
   // Filters & Search
-  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'paid' | 'free' | 'newsletter' | 'real'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'paid' | 'free' | 'newsletter' | 'real' | 'inactive' | 'incomplete'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [inactiveDays, setInactiveDays] = useState<number>(90);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>(() =>
     dataStore.getNewsletterSubscribers()
   );
@@ -146,6 +151,15 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
       if (filterTab === 'pending' && (u.a_paye || u.vipps_status !== 'pending')) return false;
       if (filterTab === 'paid' && !u.a_paye) return false;
       if (filterTab === 'free' && u.a_paye) return false;
+      if (filterTab === 'inactive') {
+        if (u.is_factice) return false;
+        const last = new Date(u.derniere_activite || u.created_at || 0).getTime();
+        if (Date.now() - last < inactiveDays * 24 * 3600 * 1000) return false;
+      }
+      if (filterTab === 'incomplete') {
+        if (u.is_factice) return false;
+        if (!(u.is_completed === false || !(u.bio || '').trim())) return false;
+      }
 
       // Text query
       if (searchQuery.trim()) {
@@ -159,7 +173,7 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
 
       return true;
     });
-  }, [users, filterTab, searchQuery]);
+  }, [users, filterTab, searchQuery, inactiveDays]);
 
   // Filtered newsletter subscribers list
   const filteredNewsletterSubscribers = useMemo(() => {
@@ -260,6 +274,44 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
       });
       setTimeout(() => setNotification(null), 3500);
     }
+  };
+
+  // Suppression : jamais un profil gestionnaire, le sien, ni un profil de démonstration
+  const canDeleteUser = (u: UserProfile) => !u.is_admin && !u.is_factice && u.id !== currentUser?.id;
+  const deletableFiltered = filteredUsers.filter(canDeleteUser);
+  const selectedUsers = users.filter((u) => selectedIds.has(u.id) && canDeleteUser(u));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllFiltered = () => {
+    const allSelected = deletableFiltered.length > 0 && deletableFiltered.every((u) => selectedIds.has(u.id));
+    setSelectedIds(allSelected ? new Set() : new Set(deletableFiltered.map((u) => u.id)));
+  };
+
+  const handleConfirmDelete = async () => {
+    const ids = selectedUsers.map((u) => u.id);
+    if (ids.length === 0) return;
+    setIsDeleting(true);
+    const res = await dataStore.adminDeleteProfiles(ids);
+    setIsDeleting(false);
+    setShowDeleteConfirm(false);
+    setSelectedIds(new Set());
+    const skippedCount = res.skipped?.length || 0;
+    setNotification({
+      message: res.success
+        ? `${res.deleted.length} profil(s) supprimé(s)${skippedCount ? ` — ${skippedCount} ignoré(s)` : ''}.`
+        : `Suppression impossible : ${res.error}`,
+      type: res.success ? 'success' : 'info',
+    });
+    setTimeout(() => setNotification(null), 5000);
+    reloadData();
   };
 
   // Action: Toggle admin role on a user
@@ -701,6 +753,30 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
             </button>
 
             <button
+              onClick={() => setFilterTab('inactive')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                filterTab === 'inactive'
+                  ? 'bg-red-700 text-white shadow-2xs font-semibold'
+                  : 'text-red-900 hover:bg-red-50'
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{locale === 'no' ? 'Inaktive' : 'Inactifs'}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterTab('incomplete')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                filterTab === 'incomplete'
+                  ? 'bg-red-700 text-white shadow-2xs font-semibold'
+                  : 'text-red-900 hover:bg-red-50'
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{locale === 'no' ? 'Ufullstendige' : 'Profils vides'}</span>
+            </button>
+
+            <button
               onClick={() => setFilterTab('newsletter')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                 filterTab === 'newsletter'
@@ -882,11 +958,59 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
           </div>
         ) : (
           /* Users Management Table */
+          <>
+          {(filterTab === 'inactive' || filterTab === 'incomplete' || selectedUsers.length > 0) && (
+            <div className="mb-3 p-3 rounded-2xl border border-red-200 bg-red-50/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 text-[#525E56]">
+                {filterTab === 'inactive' && (
+                  <label className="flex items-center gap-2">
+                    <span>{locale === 'no' ? 'Ikke aktive siden' : 'Sans connexion depuis'}</span>
+                    <select
+                      value={inactiveDays}
+                      onChange={(e) => setInactiveDays(Number(e.target.value))}
+                      className="px-2 py-1 rounded-lg border border-[#E5E1D8] bg-white"
+                    >
+                      {[30, 60, 90, 180, 365].map((d) => (
+                        <option key={d} value={d}>
+                          {d} {locale === 'no' ? 'dager' : 'jours'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {filterTab === 'incomplete' && (
+                  <span>{locale === 'no' ? 'Profiler uten beskrivelse eller ikke fullført.' : 'Profils non complétés ou sans présentation.'}</span>
+                )}
+                <span className="font-medium text-[#1F2421]">
+                  {selectedUsers.length} {locale === 'no' ? 'valgt' : 'sélectionné(s)'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSelectAllFiltered}
+                  className="px-3 py-1.5 rounded-lg border border-[#E5E1D8] bg-white hover:bg-[#FAF8F5] cursor-pointer"
+                >
+                  {locale === 'no' ? 'Velg alle' : 'Tout sélectionner'}
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedUsers.length === 0}
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{locale === 'no' ? 'Slett valgte' : 'Supprimer la sélection'}</span>
+                </button>
+              </div>
+            </div>
+          )}
           <div className="bg-white rounded-3xl border border-[#E5E1D8] shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FAF8F5] border-b border-[#E5E1D8] text-[11px] font-semibold text-[#717A74] uppercase tracking-wider">
                   <tr>
+                    <th className="py-3 px-3 w-8"></th>
                     <th className="py-3 px-4">Utilisateur</th>
                     <th className="py-3 px-4">Email</th>
                     <th className="py-3 px-4">Statut Vipps / Paiement</th>
@@ -898,7 +1022,7 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
                 <tbody className="divide-y divide-[#F0ECE1]">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-xs text-[#717A74]">
+                      <td colSpan={7} className="py-8 text-center text-xs text-[#717A74]">
                         {locale === 'no'
                           ? 'Ingen profiler matcher dette filteret.'
                           : 'Aucun utilisateur ne correspond à ce filtre.'}
@@ -916,6 +1040,17 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
                             isPending ? 'bg-amber-50/30' : ''
                           }`}
                         >
+                          <td className="py-3.5 px-3">
+                            {canDeleteUser(user) && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(user.id)}
+                                onChange={() => toggleSelected(user.id)}
+                                className="w-4 h-4 cursor-pointer accent-red-600"
+                                aria-label="Sélectionner"
+                              />
+                            )}
+                          </td>
                           {/* User Identity */}
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
@@ -1050,6 +1185,20 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
                                 </button>
                               )}
 
+                              {canDeleteUser(user) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedIds(new Set([user.id]));
+                                    setShowDeleteConfirm(true);
+                                  }}
+                                  className="p-1.5 rounded-lg border border-transparent text-[#8C938E] hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
+                                  title={locale === 'no' ? 'Slett profil' : 'Supprimer ce profil'}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
                               {/* Manager Admin Role Toggle */}
                               <button
                                 type="button"
@@ -1073,8 +1222,52 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
+
+      {/* Confirmation de suppression */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-[#E5E1D8] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2 text-red-700">
+              <Trash2 className="w-5 h-5" />
+              <h3 className="font-display text-lg font-semibold">
+                {locale === 'no' ? 'Slette profiler permanent?' : 'Supprimer définitivement ?'}
+              </h3>
+            </div>
+            <p className="text-xs text-[#525E56] leading-relaxed">
+              {selectedUsers.length} {locale === 'no' ? 'profil(er) slettes, med innloggingskonto og meldinger. Dette kan ikke angres.' : 'profil(s) seront supprimés avec leur compte de connexion et leurs messages. Cette action est irréversible.'}
+            </p>
+            <ul className="max-h-40 overflow-y-auto text-xs text-[#1F2421] space-y-1 bg-[#FAF8F5] rounded-xl border border-[#E5E1D8] p-3">
+              {selectedUsers.slice(0, 15).map((u) => (
+                <li key={u.id}>
+                  {u.prenom} <span className="text-[#8C938E]">{u.email ? `— ${u.email}` : ''}</span>
+                </li>
+              ))}
+              {selectedUsers.length > 15 && <li>… +{selectedUsers.length - 15}</li>}
+            </ul>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-xs text-[#717A74] hover:text-[#1F2421] cursor-pointer"
+              >
+                {locale === 'no' ? 'Avbryt' : 'Annuler'}
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl cursor-pointer disabled:opacity-60"
+              >
+                {isDeleting ? '…' : locale === 'no' ? 'Slett permanent' : 'Supprimer définitivement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Manual Activation Modal */}
       {showManualAddModal && (

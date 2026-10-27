@@ -1169,6 +1169,41 @@ export const dataStore = {
     return { success: true, profile: targetProfile || undefined };
   },
 
+  /** Suppression définitive de profils (réservée au gestionnaire, vérifiée côté serveur). */
+  async adminDeleteProfiles(
+    ids: string[]
+  ): Promise<{ success: boolean; deleted: string[]; skipped?: { id: string; reason: string }[]; error?: string }> {
+    const removeLocally = (list: string[]) => {
+      const set = new Set(list);
+      this.saveProfiles(this.getProfiles().filter((p) => !set.has(p.id)));
+      this.saveAccounts(this.getAccounts().filter((a) => !set.has(a.profile.id)));
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+    };
+
+    const supabase = getSupabase();
+    if (!supabase || !hasLiveSupabaseConfig()) {
+      removeLocally(ids);
+      return { success: true, deleted: ids };
+    }
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return { success: false, deleted: [], error: 'Session expirée : reconnectez-vous.' };
+
+    try {
+      const res = await fetch('/api/admin-delete-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ids }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, deleted: [], error: json?.error || `Erreur ${res.status}` };
+      removeLocally(json.deleted || []);
+      return { success: true, deleted: json.deleted || [], skipped: json.skipped || [] };
+    } catch (e: any) {
+      return { success: false, deleted: [], error: e?.message || 'Erreur réseau' };
+    }
+  },
+
   adminGetAllUsers(): UserProfile[] {
     const profiles = this.getProfiles();
     const accounts = this.getAccounts();
@@ -1688,7 +1723,12 @@ export const dataStore = {
           } else if (Array.isArray(supaProfiles) && supaProfiles.length > 0) {
             const current = this.getProfiles();
             const supaEmails = new Set(supaProfiles.map((p: any) => (p.email || '').toLowerCase()));
-            const nonSupa = current.filter((p) => !supaEmails.has((p.email || '').toLowerCase()));
+            const myId = this.getCurrentUser()?.id;
+            // Hors base, on ne garde que les profils de démonstration (et le sien) :
+            // un membre supprimé par le gestionnaire doit disparaître partout.
+            const nonSupa = current.filter(
+              (p) => !supaEmails.has((p.email || '').toLowerCase()) && (p.is_factice || p.id === myId)
+            );
             const merged = [...supaProfiles, ...nonSupa];
             this.saveProfiles(merged);
             profilesCount = supaProfiles.length;
