@@ -114,6 +114,20 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPartnerTyping]);
 
+  // Récupère régulièrement les nouveaux messages des autres membres (Supabase)
+  useEffect(() => {
+    const run = () => {
+      dataStore.syncMessagesFromSupabase();
+    };
+    run();
+    const timer = setInterval(run, 10000);
+    window.addEventListener('focus', run);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', run);
+    };
+  }, []);
+
   // Listen to message updates from custom events or storage
   useEffect(() => {
     const handleUpdate = () => {
@@ -182,7 +196,8 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
     setConversations(dataStore.getConversations());
 
     // Trigger simulated interactive response from partner
-    if (partner) {
+    // Réponse simulée uniquement pour les profils de démonstration (jamais pour un vrai membre)
+    if (partner && partner.is_factice) {
       if (replyTimeoutRef.current) clearTimeout(replyTimeoutRef.current);
 
       // Show typing indicator after a slight pause

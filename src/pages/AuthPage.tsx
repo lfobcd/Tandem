@@ -170,7 +170,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       } else {
         // Login
         console.log('[Auth Form] Attempting login for:', cleanEmail);
-        const res = dataStore.loginAccount(cleanEmail, password);
+        const res = await dataStore.loginAccountAsync(cleanEmail, password);
         if (!res.success || !res.user) {
           if (res.notFound) {
             setAccountNotFound(true);

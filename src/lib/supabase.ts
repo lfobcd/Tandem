@@ -913,6 +913,60 @@ export const dataStore = {
     return await this.registerAccount(params);
   },
 
+  /** Connexion par email : ouvre une vraie session Supabase (nécessaire pour la messagerie). */
+  async loginAccountAsync(
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; user?: UserProfile; error?: string; notFound?: boolean }> {
+    const cleanEmail = email.trim().toLowerCase();
+    const supabase = getSupabase();
+    if (!supabase || !hasLiveSupabaseConfig()) return this.loginAccount(email, password);
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+    if (!error && data?.user) {
+      const { data: rows, error: profErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', cleanEmail)
+        .limit(1);
+      if (profErr) return { success: false, error: `Base de données : ${profErr.message}` };
+      const profile = rows?.[0] as UserProfile | undefined;
+      if (!profile) {
+        return { success: false, notFound: true, error: 'Aucun profil trouvé pour cet email.' };
+      }
+      profile.derniere_activite = new Date().toISOString();
+
+      const accounts = this.getAccounts();
+      const aIdx = accounts.findIndex((a) => a.email.toLowerCase() === cleanEmail);
+      const accItem: UserAccount = { email: cleanEmail, passwordHash: await hashPassword(password), profile };
+      if (aIdx >= 0) accounts[aIdx] = accItem;
+      else accounts.unshift(accItem);
+      this.saveAccounts(accounts);
+
+      const profiles = this.getProfiles();
+      const pIdx = profiles.findIndex((p) => p.id === profile.id);
+      if (pIdx >= 0) profiles[pIdx] = profile;
+      else profiles.unshift(profile);
+      this.saveProfiles(profiles);
+
+      this.setCurrentUser(profile);
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
+      return { success: true, user: profile };
+    }
+
+    // Échec Supabase : on tente les comptes locaux créés avant la mise en place de la base
+    const local = this.loginAccount(email, password);
+    if (local.success) return local;
+    const msg = error?.message || '';
+    if (/email not confirmed/i.test(msg)) {
+      return { success: false, error: 'Veuillez confirmer votre adresse email (lien reçu par email) avant de vous connecter.' };
+    }
+    if (/invalid login credentials/i.test(msg)) {
+      return { success: false, error: 'Email ou mot de passe incorrect.' };
+    }
+    return local;
+  },
+
   loginAccount(email: string, password: string): { success: boolean; user?: UserProfile; error?: string; notFound?: boolean } {
     // Notify server of login activity
     try {
@@ -1309,7 +1363,133 @@ export const dataStore = {
       );
     }
 
+    // Envoi réel au destinataire (Supabase) + notification par email
+    void this.pushMessageRemote(newMsg);
+
     return newMsg;
+  },
+
+  /** Enregistre le message dans Supabase puis demande l'envoi de l'email de notification. */
+  async pushMessageRemote(msg: Message): Promise<void> {
+    try {
+      const supabase = getSupabase();
+      if (!supabase || !hasLiveSupabaseConfig()) return;
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (!session || msg.sender_id !== session.user.id) return; // seulement mes propres messages
+
+      const rawConvs = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+      const convs: Conversation[] = rawConvs ? JSON.parse(rawConvs) : INITIAL_CONVERSATIONS;
+      const conv = convs.find((c) => c.id === msg.conversation_id);
+      if (!conv) return;
+      const otherId = conv.participant_ids.find((id) => id !== msg.sender_id);
+      const other = this.getProfiles().find((p) => p.id === otherId);
+      if (!otherId || !other || other.is_factice) return; // pas de vrai membre en face
+
+      const { error: convErr } = await supabase
+        .from('conversations')
+        .upsert({ id: conv.id, participant_ids: [msg.sender_id, otherId], updated_at: msg.created_at });
+      if (convErr) {
+        console.error('[Messagerie] Conversation non enregistrée :', convErr);
+        return;
+      }
+      const { error: msgErr } = await supabase.from('messages').insert({
+        id: msg.id,
+        conversation_id: msg.conversation_id,
+        sender_id: msg.sender_id,
+        content: msg.content,
+        created_at: msg.created_at,
+      });
+      if (msgErr) {
+        console.error('[Messagerie] Message non enregistré :', msgErr);
+        return;
+      }
+
+      fetch('/api/notify-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ message_id: msg.id }),
+      }).catch((e) => console.warn('[Messagerie] Notification email non envoyée :', e));
+    } catch (e) {
+      console.error('[Messagerie] Erreur d\'envoi :', e);
+    }
+  },
+
+  /** Récupère depuis Supabase les conversations et messages de l'utilisateur connecté. */
+  async syncMessagesFromSupabase(): Promise<void> {
+    try {
+      const supabase = getSupabase();
+      if (!supabase || !hasLiveSupabaseConfig()) return;
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) return;
+
+      const [{ data: remoteConvs, error: cErr }, { data: remoteMsgs, error: mErr }] = await Promise.all([
+        supabase.from('conversations').select('*'),
+        supabase.from('messages').select('*').order('created_at', { ascending: true }),
+      ]);
+      if (cErr || mErr) {
+        console.warn('[Messagerie] Lecture impossible :', cErr || mErr);
+        return;
+      }
+
+      let changed = false;
+
+      const rawConvs = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+      const convs: any[] = rawConvs ? JSON.parse(rawConvs) : [...INITIAL_CONVERSATIONS];
+      const messages = this.getAllStoredMessages();
+      const knownMsg = new Set(messages.map((m) => m.id));
+
+      for (const m of remoteMsgs || []) {
+        if (!knownMsg.has(m.id)) {
+          messages.push({
+            id: m.id,
+            conversation_id: m.conversation_id,
+            sender_id: m.sender_id,
+            content: m.content,
+            created_at: m.created_at,
+          });
+          knownMsg.add(m.id);
+          changed = true;
+        }
+      }
+
+      for (const rc of remoteConvs || []) {
+        const lastMsg = [...(remoteMsgs || [])].reverse().find((m: any) => m.conversation_id === rc.id);
+        const idx = convs.findIndex((c) => c.id === rc.id);
+        const merged = {
+          id: rc.id,
+          participant_ids: rc.participant_ids,
+          updated_at: lastMsg?.created_at || rc.updated_at,
+          last_message: lastMsg
+            ? {
+                id: lastMsg.id,
+                conversation_id: lastMsg.conversation_id,
+                sender_id: lastMsg.sender_id,
+                content: lastMsg.content,
+                created_at: lastMsg.created_at,
+              }
+            : undefined,
+        };
+        if (idx < 0) {
+          convs.unshift(merged);
+          changed = true;
+        } else if (convs[idx].last_message?.id !== merged.last_message?.id) {
+          convs[idx] = { ...convs[idx], ...merged };
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
+        localStorage.setItem(
+          STORAGE_KEYS.CONVERSATIONS,
+          JSON.stringify(convs.map(({ other_user, ...rest }: any) => rest))
+        );
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('tandem_messages_updated'));
+      }
+    } catch (e) {
+      console.warn('[Messagerie] Synchronisation échouée :', e);
+    }
   },
 
   startConversation(partnerId: string): string {
@@ -1330,7 +1510,7 @@ export const dataStore = {
     }
 
     // Create new conversation
-    const newId = `conv_${currentId}_${partnerId}_${Date.now()}`;
+    const newId = `conv_${[currentId, partnerId].sort().join('__')}`;
     const newConv: Conversation = {
       id: newId,
       participant_ids: [currentId, partnerId],
