@@ -641,22 +641,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           <span>{locale === 'no' ? 'Fortsett med Apple' : 'Continuer avec Apple'}</span>
         </button>
         )}
-
-        {/* Quick Manager login link for bcdlfo@gmail.com */}
-        <div className="pt-2 text-center border-t border-[#F0ECE1]">
-          <button
-            type="button"
-            onClick={() => {
-              const res = dataStore.loginAccount('bcdlfo@gmail.com', 'vipps2026');
-              if (res.success && res.user) {
-                onLoginSuccess(res.user, 'discovery');
-              }
-            }}
-            className="text-[11px] text-[#717A74] hover:text-[#2E4A3D] font-medium transition-colors cursor-pointer"
-          >
-            🛡️ {locale === 'no' ? 'Administrator-innlogging (bcdlfo@gmail.com)' : 'Connexion Responsable (bcdlfo@gmail.com)'}
-          </button>
-        </div>
       </div>
 
       {/* Terms and Privacy Modal */}

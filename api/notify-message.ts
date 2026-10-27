@@ -1,10 +1,12 @@
 // Fonction serveur Vercel : envoie un email au membre qui vient de recevoir un message.
 // Variables d'environnement à définir sur Vercel :
-//   SUPABASE_SERVICE_ROLE_KEY  (Supabase > Project Settings > API Keys > "secret" / service_role)
-//   RESEND_API_KEY             (resend.com > API Keys)
-//   MAIL_FROM                  (ex : "Tandem Franco-Norsk <contact@votre-domaine.no>")
+//   SUPABASE_SERVICE_ROLE_KEY  (Supabase > Project Settings > API Keys > "secret")
+//   Envoi des emails, au choix :
+//     A) SANS nom de domaine : GMAIL_USER + GMAIL_APP_PASSWORD (mot de passe d'application Google)
+//     B) AVEC nom de domaine : RESEND_API_KEY + MAIL_FROM
 //   SITE_URL                   (facultatif, défaut : https://tandemfrnorsk.vercel.app)
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 const COOLDOWN_MINUTES = 30;
 
@@ -17,8 +19,10 @@ export default async function handler(req: any, res: any) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const resendKey = process.env.RESEND_API_KEY;
-  if (!supabaseUrl || !serviceKey || !resendKey) {
-    console.error('[notify-message] Variables manquantes (SUPABASE_SERVICE_ROLE_KEY / RESEND_API_KEY).');
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+  if (!supabaseUrl || !serviceKey || (!resendKey && !(gmailUser && gmailPass))) {
+    console.error('[notify-message] Variables manquantes (SUPABASE_SERVICE_ROLE_KEY et GMAIL_USER/GMAIL_APP_PASSWORD ou RESEND_API_KEY).');
     return res.status(503).json({ error: 'Notifications non configurées' });
   }
 
@@ -64,7 +68,9 @@ export default async function handler(req: any, res: any) {
     if (!recipient?.email) return res.status(200).json({ skipped: 'destinataire sans email' });
 
     const siteUrl = process.env.SITE_URL || 'https://tandemfrnorsk.vercel.app';
-    const from = process.env.MAIL_FROM || 'Tandem Franco-Norsk <onboarding@resend.dev>';
+    const from = gmailUser && gmailPass
+      ? `Tandem Franco-Norsk <${gmailUser}>`
+      : process.env.MAIL_FROM || 'Tandem Franco-Norsk <onboarding@resend.dev>';
     const senderName = esc(sender?.prenom || 'Un membre');
     const isNo = recipient.langue_maternelle === 'norvégien';
 
@@ -85,16 +91,31 @@ export default async function handler(req: any, res: any) {
            <p style="color:#717A74;font-size:12px">Tu reçois au maximum un email par conversation toutes les 30 minutes.</p>
          </div>`;
 
-    // 5. Envoi via Resend
-    const mailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [recipient.email], subject, html }),
-    });
-    if (!mailRes.ok) {
-      const detail = await mailRes.text();
-      console.error('[notify-message] Resend a refusé l\'envoi :', mailRes.status, detail);
-      return res.status(502).json({ error: 'Envoi impossible', detail });
+    // 5. Envoi : Gmail (sans domaine) ou Resend (avec domaine)
+    if (gmailUser && gmailPass) {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user: gmailUser, pass: gmailPass },
+      });
+      try {
+        await transporter.sendMail({ from, to: recipient.email, subject, html });
+      } catch (mailErr: any) {
+        console.error('[notify-message] Gmail a refusé l\'envoi :', mailErr?.message || mailErr);
+        return res.status(502).json({ error: 'Envoi impossible' });
+      }
+    } else {
+      const mailRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [recipient.email], subject, html }),
+      });
+      if (!mailRes.ok) {
+        const detail = await mailRes.text();
+        console.error('[notify-message] Resend a refusé l\'envoi :', mailRes.status, detail);
+        return res.status(502).json({ error: 'Envoi impossible', detail });
+      }
     }
 
     await admin

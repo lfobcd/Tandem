@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PageView, UserProfile } from '../types';
-import { dataStore, VippsPaymentRequest } from '../lib/supabase';
+import { dataStore, supabaseAuth, VippsPaymentRequest } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
 import { VIPPS_SECURITY_CONFIG } from '../config/vippsSecurity';
 import {
@@ -44,14 +44,17 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
 }) => {
   const { locale } = useTranslation();
 
-  // Authentication check: bcdlfo@gmail.com has automatic full manager access
-  const isOwnerEmail = currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com';
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
-    const storedAdmin = typeof window !== 'undefined' && localStorage.getItem('tandem_admin_session') === 'true';
-    return isOwnerEmail || Boolean(currentUser?.is_admin) || storedAdmin;
-  });
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
+  // Accès gestionnaire : vérifié auprès de Supabase (session réelle + is_admin dans la base).
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    supabaseAuth.verifyAdminRemote().then((ok) => {
+      if (alive) setIsAdminUnlocked(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [currentUser?.id]);
 
   // Users and requests state
   const [users, setUsers] = useState<UserProfile[]>(() => dataStore.adminGetAllUsers());
@@ -342,92 +345,25 @@ export const AdminSubscriptionsPage: React.FC<AdminSubscriptionsPageProps> = ({
     setTimeout(() => setNotification(null), 3500);
   };
 
-  // Handle Passcode Unlock
-  const handleUnlockPin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinInput.trim() === 'vipps2026' || pinInput.trim() === 'admin' || pinInput.trim() === '2424') {
-      setIsAdminUnlocked(true);
-      localStorage.setItem('tandem_admin_session', 'true');
-      setPinError(false);
-    } else {
-      setPinError(true);
-    }
-  };
-
-  // PIN Lock Screen
+  // Écran verrouillé : plus de code PIN ni de connexion directe
   if (!isAdminUnlocked) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6">
         <div className="w-16 h-16 rounded-3xl bg-[#2E4A3D] text-white flex items-center justify-center mx-auto shadow-md">
           <ShieldCheck className="w-8 h-8 text-emerald-300" />
         </div>
-
         <div className="space-y-2">
           <h1 className="font-display text-2xl font-semibold text-[#1F2421]">
-            {locale === 'no' ? 'Administratorinnlogging' : 'Espace Gestionnaire & Souscriptions Vipps'}
+            {locale === 'no' ? 'Administratorinnlogging' : 'Espace Gestionnaire'}
           </h1>
           <p className="text-xs text-[#525E56] leading-relaxed">
-            {locale === 'no'
-              ? 'Administrer Vipps-betalinger (92 13 17 92) og aktiver brukerkontoer.'
-              : 'Gérez les souscriptions Vipps (92 13 17 92) et activez les profils ayant payé.'}
+            {isAdminUnlocked === null
+              ? locale === 'no' ? 'Kontrollerer tilgang…' : 'Vérification de l\'accès…'
+              : locale === 'no'
+              ? 'Tilgang forbeholdt administratoren. Logg inn med administratorkontoen.'
+              : 'Accès réservé au gestionnaire. Connectez-vous avec le compte gestionnaire (Google ou email).'}
           </p>
         </div>
-
-        <form onSubmit={handleUnlockPin} className="p-6 bg-white rounded-3xl border border-[#E5E1D8] shadow-xs space-y-4">
-          <button
-            type="button"
-            onClick={() => {
-              setIsAdminUnlocked(true);
-              localStorage.setItem('tandem_admin_session', 'true');
-              const bcdlfoAcc = dataStore.getAccounts().find((a) => a.email.toLowerCase() === 'bcdlfo@gmail.com');
-              if (bcdlfoAcc) {
-                dataStore.setCurrentUser(bcdlfoAcc.profile);
-              }
-              reloadData();
-            }}
-            className="w-full py-3 px-4 bg-[#2E4A3D] hover:bg-[#23382E] text-white text-xs font-semibold rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-300" />
-            <span>{locale === 'no' ? 'Direkte innlogging (bcdlfo@gmail.com)' : 'Connexion directe Responsable (bcdlfo@gmail.com)'}</span>
-          </button>
-
-          <div className="relative flex py-1 items-center">
-            <div className="grow border-t border-[#E5E1D8]"></div>
-            <span className="shrink mx-2 text-[10px] text-[#717A74] uppercase tracking-wider">{locale === 'no' ? 'Eller tast PIN' : 'Ou entrer le code PIN'}</span>
-            <div className="grow border-t border-[#E5E1D8]"></div>
-          </div>
-
-          <div className="space-y-1.5 text-left">
-            <label className="text-xs font-medium text-[#525E56]">
-              {locale === 'no' ? 'Administrator-PIN' : 'Code PIN (vipps2026)'}
-            </label>
-            <input
-              type="password"
-              value={pinInput}
-              onChange={(e) => {
-                setPinInput(e.target.value);
-                setPinError(false);
-              }}
-              placeholder="Code (ex: vipps2026)"
-              className="w-full px-4 py-2.5 text-sm bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-center font-mono tracking-widest"
-              autoFocus
-            />
-          </div>
-
-          {pinError && (
-            <p className="text-xs text-red-600 bg-red-50 p-2 rounded-xl border border-red-200">
-              {locale === 'no' ? 'Ugyldig PIN-kode.' : 'Code incorrect. Indice : vipps2026'}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            className="w-full py-2.5 bg-white border border-[#E5E1D8] hover:bg-[#FAF8F5] text-[#1F2421] text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-2"
-          >
-            <Unlock className="w-4 h-4 text-[#2E4A3D]" />
-            <span>{locale === 'no' ? 'Lås opp med PIN' : 'Déverrouiller avec le PIN'}</span>
-          </button>
-        </form>
       </div>
     );
   }

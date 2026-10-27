@@ -599,7 +599,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </button>
 
                   {/* Test-mode shortcut strictly reserved for bcdlfo@gmail.com or manager */}
-                  {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+                  {currentUser?.is_admin === true && (
                     <div className="text-center pt-1">
                       <button
                         type="button"

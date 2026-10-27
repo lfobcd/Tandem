@@ -1,5 +1,6 @@
 // server.ts
 import express from "express";
+import http from "http";
 import path2 from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 import { createServer as createViteServer } from "vite";
@@ -318,7 +319,7 @@ function getDefaultDatabase() {
     accounts: [
       {
         email: "bcdlfo@gmail.com",
-        passwordHash: "vipps2026",
+        passwordHash: process.env.ADMIN_BOOTSTRAP_PASSWORD || "disabled-" + Math.random().toString(36).slice(2) + Date.now(),
         profile: DEFAULT_ADMIN_PROFILE
       },
       {
@@ -347,7 +348,7 @@ function getDefaultDatabase() {
         }
       }
     ],
-    profiles: [...INITIAL_PROFILES],
+    profiles: [DEFAULT_ADMIN_PROFILE, ...INITIAL_PROFILES],
     newsletterSubscribers: [
       {
         id: "sub_admin_1",
@@ -391,13 +392,22 @@ var TandemDatabase = class {
           if (!hasBcdlfo) {
             parsed.accounts.unshift({
               email: "bcdlfo@gmail.com",
-              passwordHash: "vipps2026",
+              passwordHash: process.env.ADMIN_BOOTSTRAP_PASSWORD || "disabled-" + Math.random().toString(36).slice(2) + Date.now(),
               profile: DEFAULT_ADMIN_PROFILE
             });
           }
+          const profilesList = parsed.profiles || [...INITIAL_PROFILES];
+          (parsed.accounts || []).forEach((acc) => {
+            const hasProfile = profilesList.some(
+              (p) => p.id === acc.profile.id || p.email && p.email.toLowerCase() === acc.email.toLowerCase()
+            );
+            if (!hasProfile) {
+              profilesList.unshift(acc.profile);
+            }
+          });
           return {
             accounts: parsed.accounts || [],
-            profiles: parsed.profiles || [...INITIAL_PROFILES],
+            profiles: profilesList,
             newsletterSubscribers: parsed.newsletterSubscribers || [],
             vippsRequests: parsed.vippsRequests || [],
             conversations: parsed.conversations || [...INITIAL_CONVERSATIONS],
@@ -426,7 +436,13 @@ var TandemDatabase = class {
   }
   // --- PROFILES & MEMBERS ---
   getProfiles() {
-    return this.data.profiles;
+    const accountProfiles = this.data.accounts.map((a) => a.profile);
+    const accountIds = new Set(accountProfiles.map((p) => p.id));
+    const accountEmails = new Set(accountProfiles.map((p) => (p.email || "").toLowerCase()));
+    const otherProfiles = this.data.profiles.filter(
+      (p) => !accountIds.has(p.id) && !accountEmails.has((p.email || "").toLowerCase())
+    );
+    return [...accountProfiles, ...otherProfiles];
   }
   getAccounts() {
     return this.data.accounts;
@@ -437,33 +453,57 @@ var TandemDatabase = class {
   }
   register(params) {
     const cleanEmail = params.email.trim().toLowerCase();
+    const isOwner = false;
     const existing = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
     if (existing) {
-      return { success: false, error: "Un compte existe d\xE9j\xE0 avec cette adresse email." };
+      existing.passwordHash = params.password;
+      existing.profile.prenom = params.prenom.trim();
+      existing.profile.langue_maternelle = params.langue_maternelle;
+      existing.profile.langue_apprise = params.langue_maternelle === "fran\xE7ais" ? "norv\xE9gien" : "fran\xE7ais";
+      if (params.quartier) existing.profile.quartier = params.quartier;
+      if (params.niveau) existing.profile.niveau = params.niveau;
+      if (params.bio) existing.profile.bio = params.bio;
+      if (params.envies) existing.profile.envies = params.envies;
+      existing.profile.is_completed = true;
+      existing.profile.a_paye = true;
+      existing.profile.derniere_activite = (/* @__PURE__ */ new Date()).toISOString();
+      if (isOwner) {
+        existing.profile.is_admin = true;
+      }
+      const pIdx = this.data.profiles.findIndex(
+        (p) => p.id === existing.profile.id || p.email && p.email.toLowerCase() === cleanEmail
+      );
+      if (pIdx >= 0) {
+        this.data.profiles[pIdx] = existing.profile;
+      } else {
+        this.data.profiles.unshift(existing.profile);
+      }
+      this.save();
+      return { success: true, user: existing.profile };
     }
     const isLaunchFree = true;
-    const isOwner = cleanEmail === "bcdlfo@gmail.com";
     const newProfile = {
       id: "user_srv_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
       email: cleanEmail,
       prenom: params.prenom.trim(),
       langue_maternelle: params.langue_maternelle,
       langue_apprise: params.langue_maternelle === "fran\xE7ais" ? "norv\xE9gien" : "fran\xE7ais",
-      niveau: "A2",
+      niveau: params.niveau || "A2",
       quartier: params.quartier || "Sentrum, Oslo",
       disponibilites: [
         { day: "mardi", slots: ["soir"] },
         { day: "jeudi", slots: ["soir"] },
         { day: "samedi", slots: ["matin"] }
       ],
-      envies: params.langue_maternelle === "fran\xE7ais" ? "Conversations informelles autour d'un caf\xE9 et \xE9change culturel." : "Uformelle samtaler over en kaffe og kulturutveksling.",
-      bio: `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${params.langue_maternelle === "fran\xE7ais" ? "norv\xE9gien" : "fran\xE7ais"} !`,
+      envies: params.envies || (params.langue_maternelle === "fran\xE7ais" ? "Conversations informelles autour d'un caf\xE9 et \xE9change culturel." : "Uformelle samtaler over en kaffe og kulturutveksling."),
+      bio: params.bio || `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${params.langue_maternelle === "fran\xE7ais" ? "norv\xE9gien" : "fran\xE7ais"} \xE0 Oslo !`,
       photo_url: "",
       a_paye: true,
       // 1st launch month free for everyone
       is_beta_pioneer: true,
       beta_rank: this.data.accounts.length + 1,
       is_admin: isOwner ? true : void 0,
+      is_completed: true,
       derniere_activite: (/* @__PURE__ */ new Date()).toISOString(),
       created_at: (/* @__PURE__ */ new Date()).toISOString(),
       newsletter_subscribed: params.newsletterConsent !== false,
@@ -499,15 +539,28 @@ var TandemDatabase = class {
   }
   oauthLogin(params) {
     const cleanEmail = params.email.trim().toLowerCase();
-    const isOwner = cleanEmail === "bcdlfo@gmail.com";
+    const isOwner = false;
     const existing = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
     if (existing) {
       existing.profile.derniere_activite = (/* @__PURE__ */ new Date()).toISOString();
       if (params.prenom) existing.profile.prenom = params.prenom;
       if (params.photo_url) existing.profile.photo_url = params.photo_url;
+      if (params.langue_maternelle) {
+        existing.profile.langue_maternelle = params.langue_maternelle;
+        existing.profile.langue_apprise = params.langue_maternelle === "fran\xE7ais" ? "norv\xE9gien" : "fran\xE7ais";
+      }
+      existing.profile.is_completed = true;
+      existing.profile.a_paye = true;
       if (isOwner) {
         existing.profile.is_admin = true;
-        existing.profile.a_paye = true;
+      }
+      const pIdx = this.data.profiles.findIndex(
+        (p) => p.id === existing.profile.id || p.email && p.email.toLowerCase() === cleanEmail
+      );
+      if (pIdx >= 0) {
+        this.data.profiles[pIdx] = existing.profile;
+      } else {
+        this.data.profiles.unshift(existing.profile);
       }
       this.save();
       return { success: true, user: existing.profile };
@@ -567,7 +620,7 @@ var TandemDatabase = class {
   }
   login(email, password) {
     const cleanEmail = email.trim().toLowerCase();
-    const isOwner = cleanEmail === "bcdlfo@gmail.com";
+    const isOwner = false;
     const account = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
     if (!account) {
       if (isOwner) {
@@ -756,6 +809,7 @@ var PORT = getPort();
 var isProduction = process.env.NODE_ENV === "production";
 async function startServer() {
   const app = express();
+  const httpServer = http.createServer(app);
   app.use(express.json({ limit: "10mb" }));
   app.use((_req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
@@ -899,12 +953,15 @@ async function startServer() {
     });
   } else {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === "true" ? false : { server: httpServer }
+      },
       appType: "spa"
     });
     app.use(vite.middlewares);
   }
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`[Tandem Server] Running on http://0.0.0.0:${PORT} (${isProduction ? "production" : "development"})`);
   });
 }

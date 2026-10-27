@@ -105,26 +105,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setTimeout(() => setSavedNotice(null), 2500);
   };
 
-  const handleToggleAdminRole = () => {
-    if (!currentUser) return;
-    const newAdminStatus = !currentUser.is_admin;
-    const updated = dataStore.updateCurrentUser({ is_admin: newAdminStatus });
-    if (newAdminStatus) {
-      localStorage.setItem('tandem_admin_session', 'true');
-    }
-    onUserUpdated(updated);
-    setSavedNotice(
-      newAdminStatus
-        ? (locale === 'no'
-            ? 'Administratorprofil aktivert! Du har nå full tilgang til Vipps-kontrollpanelet.'
-            : 'Profil gestionnaire activé ! Vous avez accès au tableau de bord des souscriptions Vipps.')
-        : (locale === 'no'
-            ? 'Administratorprofil deaktivert.'
-            : 'Profil gestionnaire désactivé.')
-    );
-    setTimeout(() => setSavedNotice(null), 3000);
-  };
-
   const handleResetData = () => {
     if (confirm(locale === 'no' ? 'Vil du tilbakestille testprofilene i Oslo?' : 'Voulez-vous réinitialiser les profils et conversations de démonstration ?')) {
       dataStore.resetToDefault();
@@ -364,7 +344,7 @@ CREATE TABLE public.messages (
           </div>
         )}
 
-        {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+        {currentUser?.is_admin === true && (
           <div className="pt-2 flex items-center justify-between border-t border-[#F0ECE1]">
             <span className="text-xs text-[#8C938E]">
               {locale === 'no' ? 'Hurtigknapp for administrator (veksle status manuelt):' : 'Option gestionnaire (basculer le statut test) :'}
@@ -380,7 +360,7 @@ CREATE TABLE public.messages (
       </div>
 
       {/* Profil Gestionnaire & Souscriptions Vipps - visible UNIQUEMENT pour bcdlfo@gmail.com ou profil gestionnaire */}
-      {(currentUser?.email?.toLowerCase() === 'bcdlfo@gmail.com' || currentUser?.is_admin === true) && (
+      {currentUser?.is_admin === true && (
         <div className="bg-gradient-to-br from-[#F5FAF7] via-white to-[#F0F5F2] rounded-2xl border-2 border-[#2E4A3D]/25 shadow-xs p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-1">

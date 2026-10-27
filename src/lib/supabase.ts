@@ -144,6 +144,10 @@ export const supabaseAuth = {
     let profile: UserProfile;
     if (existingRows && existingRows.length > 0) {
       profile = { ...(existingRows[0] as UserProfile), derniere_activite: new Date().toISOString() };
+      const oauthProvider = authUser.app_metadata?.provider;
+      if (profile.is_admin && oauthProvider !== 'google' && oauthProvider !== 'email') {
+        profile.is_admin = false; // email non garanti par ce fournisseur : pas de droits gestionnaire
+      }
       await supabase.from('profiles').update({ derniere_activite: profile.derniere_activite }).eq('email', email);
     } else {
       // 2. Nouveau membre : création du profil
@@ -223,6 +227,30 @@ export const supabaseAuth = {
       window.dispatchEvent(new CustomEvent('tandem_profiles_updated'));
     }
     return { success: true, user: profile };
+  },
+
+  /**
+   * Vérifie auprès de Supabase (et non dans le navigateur) que la personne connectée
+   * est bien gestionnaire : session réelle + email confirmé + is_admin dans la base.
+   */
+  async verifyAdminRemote(): Promise<boolean> {
+    try {
+      const supabase = getSupabase();
+      if (!supabase || !hasLiveSupabaseConfig()) return false;
+      const { data } = await supabase.auth.getSession();
+      const user = data?.session?.user;
+      if (!user?.email || !user.email_confirmed_at) return false;
+      const provider = user.app_metadata?.provider;
+      if (provider && provider !== 'google' && provider !== 'email') return false;
+      const { data: rows } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('email', user.email.toLowerCase())
+        .limit(1);
+      return Boolean(rows?.[0]?.is_admin);
+    } catch {
+      return false;
+    }
   },
 
   async signOut(): Promise<void> {
@@ -450,44 +478,6 @@ const initStorage = () => {
     }
   } catch {}
 
-  // Ensure bcdlfo@gmail.com manager account exists in accounts store
-  try {
-    const rawAccs = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
-    const accList: UserAccount[] = rawAccs ? JSON.parse(rawAccs) : [];
-    const bcdlfoIdx = accList.findIndex((a) => a.email.toLowerCase() === 'bcdlfo@gmail.com');
-    if (bcdlfoIdx >= 0) {
-      accList[bcdlfoIdx].profile.is_admin = true;
-      accList[bcdlfoIdx].profile.a_paye = true;
-      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accList));
-    } else {
-      accList.push({
-        email: 'bcdlfo@gmail.com',
-        passwordHash: 'vipps2026',
-        profile: {
-          id: 'user_manager_bcdlfo',
-          email: 'bcdlfo@gmail.com',
-          prenom: 'Admin',
-          langue_maternelle: 'français',
-          langue_apprise: 'norvégien',
-          niveau: 'C1',
-          quartier: 'Sentrum, Oslo',
-          disponibilites: [
-            { day: 'lundi', slots: ['matin', 'apres-midi', 'soir'] },
-            { day: 'mardi', slots: ['matin', 'apres-midi', 'soir'] },
-          ],
-          envies: 'Gestion de la communauté Tandem Fransk Norsk.',
-          bio: 'Profil gestionnaire administrateur de Tandem Fransk Norsk Oslo.',
-          photo_url: '',
-          a_paye: true,
-          is_completed: true,
-          is_admin: true,
-          derniere_activite: new Date().toISOString(),
-        },
-      });
-      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accList));
-    }
-  } catch {}
-
   // NOTE: We do NOT auto-assign CURRENT_USER! Visitors are guests (not logged in)
   // until they click Log In or Sign Up.
   if (!localStorage.getItem(STORAGE_KEYS.CONVERSATIONS)) {
@@ -511,12 +501,6 @@ export const dataStore = {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
         return null;
       }
-      // bcdlfo@gmail.com is strictly configured as the manager profile
-      if (user?.email?.toLowerCase() === 'bcdlfo@gmail.com') {
-        user.is_admin = true;
-        user.a_paye = true;
-      }
-
       return user;
     } catch {
       return null;
@@ -525,10 +509,6 @@ export const dataStore = {
 
   setCurrentUser(user: UserProfile | null) {
     if (user) {
-      if (user.email?.toLowerCase() === 'bcdlfo@gmail.com') {
-        user.is_admin = true;
-        user.a_paye = true;
-      }
       user.derniere_activite = new Date().toISOString();
       localStorage.setItem(STORAGE_KEYS.EXPLICIT_LOGIN, 'true');
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
@@ -609,7 +589,7 @@ export const dataStore = {
     }
 
     const isLaunchFree = this.getLaunchOfferStats().isLaunchMonthActive;
-    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+    const isOwner = false; // le statut gestionnaire ne s'obtient JAMAIS à l'inscription
     const pwdHash = hashPasswordSync(params.password);
 
     const newProfile: UserProfile = {
@@ -768,7 +748,7 @@ export const dataStore = {
 
         const userId = authData?.user?.id || `user_sp_${Date.now()}`;
         const isLaunchFree = this.getLaunchOfferStats().isLaunchMonthActive;
-        const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+        const isOwner = false; // le statut gestionnaire ne s'obtient JAMAIS à l'inscription
 
         const supaProfile: UserProfile = {
           id: userId,
@@ -986,7 +966,7 @@ export const dataStore = {
       };
     }
 
-    const isManager = email.trim().toLowerCase() === 'bcdlfo@gmail.com';
+    const isManager = false; // plus aucun compte n'est dispensé de mot de passe
     if (!isManager && account.passwordHash && account.passwordHash !== password) {
       return { success: false, error: 'Mot de passe incorrect.' };
     }

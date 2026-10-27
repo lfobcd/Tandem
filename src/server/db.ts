@@ -76,7 +76,7 @@ function getDefaultDatabase(): DatabaseSchema {
     accounts: [
       {
         email: 'bcdlfo@gmail.com',
-        passwordHash: 'vipps2026',
+        passwordHash: process.env.ADMIN_BOOTSTRAP_PASSWORD || ('disabled-' + Math.random().toString(36).slice(2) + Date.now()),
         profile: DEFAULT_ADMIN_PROFILE,
       },
       {
@@ -156,7 +156,7 @@ class TandemDatabase {
           if (!hasBcdlfo) {
             parsed.accounts.unshift({
               email: 'bcdlfo@gmail.com',
-              passwordHash: 'vipps2026',
+              passwordHash: process.env.ADMIN_BOOTSTRAP_PASSWORD || ('disabled-' + Math.random().toString(36).slice(2) + Date.now()),
               profile: DEFAULT_ADMIN_PROFILE,
             });
           }
@@ -238,7 +238,7 @@ class TandemDatabase {
     envies?: string;
   }): { success: boolean; user?: UserProfile; error?: string } {
     const cleanEmail = params.email.trim().toLowerCase();
-    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+    const isOwner = false;
     const existing = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
 
     if (existing) {
@@ -350,7 +350,7 @@ class TandemDatabase {
     photo_url?: string;
   }): { success: boolean; user: UserProfile } {
     const cleanEmail = params.email.trim().toLowerCase();
-    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+    const isOwner = false;
     const existing = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
 
     if (existing) {
@@ -447,7 +447,7 @@ class TandemDatabase {
 
   public login(email: string, password: string): { success: boolean; user?: UserProfile; error?: string } {
     const cleanEmail = email.trim().toLowerCase();
-    const isOwner = cleanEmail === 'bcdlfo@gmail.com';
+    const isOwner = false;
     const account = this.data.accounts.find((a) => a.email.toLowerCase() === cleanEmail);
 
     if (!account) {
