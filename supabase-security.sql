@@ -21,6 +21,52 @@ AS $$
   );
 $$;
 
+-- 0. Email vérifié : posé uniquement par la base, d'après la confirmation réelle de l'email
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- À la création d'un profil : la valeur envoyée par le site est ignorée
+CREATE OR REPLACE FUNCTION public.set_email_verified_on_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  NEW.email_verified := EXISTS (
+    SELECT 1 FROM auth.users u
+    WHERE u.id::text = NEW.id AND u.email_confirmed_at IS NOT NULL
+  );
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_set_email_verified_on_insert ON public.profiles;
+CREATE TRIGGER trg_set_email_verified_on_insert
+  BEFORE INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.set_email_verified_on_insert();
+
+-- Quand le membre clique sur le lien de confirmation, son profil devient « email vérifié »
+CREATE OR REPLACE FUNCTION public.sync_email_verified_from_auth()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  UPDATE public.profiles
+  SET email_verified = (NEW.email_confirmed_at IS NOT NULL)
+  WHERE id = NEW.id::text;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_sync_email_verified ON auth.users;
+CREATE TRIGGER trg_sync_email_verified
+  AFTER INSERT OR UPDATE OF email_confirmed_at ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.sync_email_verified_from_auth();
+
+-- Membres existants : on reprend l'état actuel de confirmation
+UPDATE public.profiles p
+SET email_verified = TRUE
+FROM auth.users u
+WHERE u.id::text = p.id AND u.email_confirmed_at IS NOT NULL;
+
 -- 1. Inscription : personne ne peut se créer un profil gestionnaire
 DROP POLICY IF EXISTS "Allow registration insert" ON public.profiles;
 CREATE POLICY "Allow registration insert" ON public.profiles
@@ -46,6 +92,7 @@ BEGIN
        OR NEW.is_beta_pioneer IS DISTINCT FROM OLD.is_beta_pioneer
        OR NEW.beta_rank IS DISTINCT FROM OLD.beta_rank
        OR NEW.vipps_status IS DISTINCT FROM OLD.vipps_status
+       OR NEW.email_verified IS DISTINCT FROM OLD.email_verified
        OR NEW.email IS DISTINCT FROM OLD.email
        OR NEW.id IS DISTINCT FROM OLD.id THEN
       RAISE EXCEPTION 'Modification non autorisée de champs protégés';

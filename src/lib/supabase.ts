@@ -27,6 +27,16 @@ export async function hashPassword(password: string): Promise<string> {
   }
 }
 
+export const PROFILE_MIN_BIO = 30;
+
+/** Profil complet : photo + présentation d'au moins 30 caractères. */
+export const isProfileComplete = (p?: Partial<UserProfile> | null): boolean =>
+  Boolean(p && p.photo_url && (p.bio || '').trim().length >= PROFILE_MIN_BIO && p.is_completed !== false);
+
+/** Profil « vérifié » : email confirmé + photo + présentation (jamais pour les profils de démonstration). */
+export const isVerifiedProfile = (p?: Partial<UserProfile> | null): boolean =>
+  Boolean(p && !p.is_factice && p.email_verified && isProfileComplete(p));
+
 const getStoredConfig = () => {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -186,7 +196,7 @@ export const supabaseAuth = {
         a_paye: isLaunchFree,
         is_beta_pioneer: isLaunchFree,
         beta_rank: 1,
-        is_completed: true,
+        is_completed: false, // à compléter (photo + présentation) à la première connexion
         derniere_activite: new Date().toISOString(),
         newsletter_subscribed: true,
         lieux_preferes: [
@@ -563,6 +573,7 @@ export const dataStore = {
     newsletterConsent?: boolean;
     bio?: string;
     envies?: string;
+    photo_url?: string;
   }): { success: boolean; user?: UserProfile; error?: string } {
     const cleanEmail = (params.email || '').trim().toLowerCase();
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -576,9 +587,15 @@ export const dataStore = {
       console.error('[Registration Error] Missing first name');
       return { success: false, error: 'Veuillez renseigner votre prénom.' };
     }
-    if (!params.password || params.password.length < 4) {
-      console.error('[Registration Error] Password too short (< 4 chars)');
-      return { success: false, error: 'Le mot de passe doit comporter au moins 4 caractères.' };
+    if (!params.password || params.password.length < 8) {
+      console.error('[Registration Error] Password too short (< 8 chars)');
+      return { success: false, error: 'Le mot de passe doit comporter au moins 8 caractères.' };
+    }
+    if (!params.photo_url) {
+      return { success: false, error: 'Une photo de profil est obligatoire.' };
+    }
+    if ((params.bio || '').trim().length < PROFILE_MIN_BIO) {
+      return { success: false, error: `Présentez-vous en au moins ${PROFILE_MIN_BIO} caractères.` };
     }
 
     const accounts = this.getAccounts();
@@ -611,7 +628,7 @@ export const dataStore = {
       bio: params.bio || `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
         params.langue_maternelle === 'français' ? 'norvégien' : 'français'
       } !`,
-      photo_url: '',
+      photo_url: params.photo_url || '',
       a_paye: isOwner ? true : (isLaunchFree ? true : false),
       is_beta_pioneer: isLaunchFree ? true : false,
       beta_rank: accounts.length + 1,
@@ -697,7 +714,8 @@ export const dataStore = {
     newsletterConsent?: boolean;
     bio?: string;
     envies?: string;
-  }): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+    photo_url?: string;
+  }): Promise<{ success: boolean; user?: UserProfile; error?: string; needsEmailConfirmation?: boolean }> {
     const cleanEmail = (params.email || '').trim().toLowerCase();
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -710,9 +728,15 @@ export const dataStore = {
       console.error('[Registration Error] Missing first name');
       return { success: false, error: 'Veuillez renseigner votre prénom.' };
     }
-    if (!params.password || params.password.length < 4) {
-      console.error('[Registration Error] Password too short (< 4 chars)');
-      return { success: false, error: 'Le mot de passe doit comporter au moins 4 caractères.' };
+    if (!params.password || params.password.length < 8) {
+      console.error('[Registration Error] Password too short (< 8 chars)');
+      return { success: false, error: 'Le mot de passe doit comporter au moins 8 caractères.' };
+    }
+    if (!params.photo_url) {
+      return { success: false, error: 'Une photo de profil est obligatoire.' };
+    }
+    if ((params.bio || '').trim().length < PROFILE_MIN_BIO) {
+      return { success: false, error: `Présentez-vous en au moins ${PROFILE_MIN_BIO} caractères.` };
     }
 
     // 2. LIVE SUPABASE DATABASE CHECK & INSERT (if configured)
@@ -746,6 +770,7 @@ export const dataStore = {
           return { success: false, error: `Création du compte impossible : ${authError.message}` };
         }
 
+        const needsEmailConfirmation = Boolean(authData?.user) && !authData?.session;
         const userId = authData?.user?.id || `user_sp_${Date.now()}`;
         const isLaunchFree = this.getLaunchOfferStats().isLaunchMonthActive;
         const isOwner = false; // le statut gestionnaire ne s'obtient JAMAIS à l'inscription
@@ -769,7 +794,7 @@ export const dataStore = {
           bio: params.bio || `Hei! Je m'appelle ${params.prenom.trim()} et je souhaite pratiquer le ${
             params.langue_maternelle === 'français' ? 'norvégien' : 'français'
           } !`,
-          photo_url: '',
+          photo_url: params.photo_url || '',
           a_paye: isOwner ? true : (isLaunchFree ? true : false),
           is_beta_pioneer: isLaunchFree ? true : false,
           beta_rank: 1,
@@ -800,6 +825,11 @@ export const dataStore = {
           };
         }
         console.log('[Supabase DB] Profile created successfully in Supabase!');
+
+        if (needsEmailConfirmation) {
+          // Supabase a envoyé un email de confirmation : le membre se connectera après l'avoir confirmé
+          return { success: true, needsEmailConfirmation: true };
+        }
 
         // Save locally and set current user
         const pwdHash = await hashPassword(params.password);

@@ -83,6 +83,7 @@ export interface UserProfile {
   lieux_preferes?: PreferredPlace[];
   created_at?: string;
   newsletter_subscribed?: boolean;
+  email_verified?: boolean; // posé par la base quand l'email a été confirmé
 }
 
 export interface NewsletterSubscriber {

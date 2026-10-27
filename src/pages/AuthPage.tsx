@@ -18,6 +18,8 @@ import {
   Globe,
 } from 'lucide-react';
 import { TermsModal } from '../components/TermsModal';
+import { PhotoUpload } from '../components/PhotoUpload';
+import { PROFILE_MIN_BIO } from '../lib/supabase';
 
 interface AuthPageProps {
   onNavigate: (page: PageView) => void;
@@ -63,6 +65,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [langueMaternelle, setLangueMaternelle] = useState<'français' | 'norvégien'>('français');
   const [quartier, setQuartier] = useState('Sentrum, Oslo');
   const [niveau, setNiveau] = useState('A2');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [bio, setBio] = useState('');
   const [newsletterConsent, setNewsletterConsent] = useState(true);
 
   // Status & Modals
@@ -117,6 +121,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
+    if (isSignUp && password.length < 8) {
+      setError(locale === 'no' ? 'Erreur : Passordet må ha minst 8 tegn.' : 'Erreur : Le mot de passe doit comporter au moins 8 caractères.');
+      return;
+    }
+
+    if (isSignUp && !photoUrl) {
+      setError(
+        locale === 'no'
+          ? 'Erreur : Et profilbilde er obligatorisk. Legg til et bilde av deg.'
+          : 'Erreur : Une photo de profil est obligatoire. Ajoutez une photo de vous.'
+      );
+      return;
+    }
+
+    if (isSignUp && bio.trim().length < PROFILE_MIN_BIO) {
+      setError(
+        locale === 'no'
+          ? `Erreur : Presenter deg selv med minst ${PROFILE_MIN_BIO} tegn.`
+          : `Erreur : Présentez-vous en au moins ${PROFILE_MIN_BIO} caractères.`
+      );
+      return;
+    }
+
     if (isSignUp && !cleanPrenom) {
       const msg = locale === 'no'
         ? 'Erreur : Vennligst oppgi fornavnet ditt.'
@@ -141,7 +168,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           quartier,
           niveau,
           newsletterConsent,
+          photo_url: photoUrl,
+          bio: bio.trim(),
         });
+
+        if (res.success && res.needsEmailConfirmation) {
+          setSuccessMessage(
+            locale === 'no'
+              ? 'Nesten ferdig ! Vi har sendt deg en e-post. Bekreft adressen din, og logg deretter inn.'
+              : 'Presque fini ! Nous vous avons envoyé un email : confirmez votre adresse, puis connectez-vous.'
+          );
+          setIsSignUp(false);
+          return;
+        }
 
         if (!res.success || !res.user) {
           const rawErr = res.error || (locale === 'no' ? 'Kunne ikke opprette konto.' : 'Erreur lors de la création du compte.');
@@ -390,6 +429,44 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 />
               </div>
             </div>
+          )}
+
+          {/* Sign Up Fields: photo de profil obligatoire + présentation */}
+          {isSignUp && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#1F2421]">
+                  {locale === 'no' ? 'Profilbilde' : 'Votre photo de profil'} <span className="text-red-500">*</span>
+                </label>
+                <p className="text-[11px] text-[#717A74] leading-snug">
+                  {locale === 'no'
+                    ? 'Et ekte bilde av deg, slik at de andre medlemmene kan stole på profilen din.'
+                    : 'Une vraie photo de vous, pour que les autres membres puissent faire confiance à votre profil.'}
+                </p>
+                <PhotoUpload value={photoUrl} onChange={setPhotoUrl} prenom={prenom} uploadOnly />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[#1F2421]">
+                  {locale === 'no' ? 'Presenter deg selv' : 'Présentez-vous'} <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={3}
+                  placeholder={
+                    locale === 'no'
+                      ? 'Hvem er du, og hva ønsker du å øve på ?'
+                      : 'Qui êtes-vous et que souhaitez-vous pratiquer ?'
+                  }
+                  className="w-full px-4 py-2.5 text-sm bg-[#FAF8F5] border border-[#E5E1D8] rounded-xl focus:outline-none focus:border-[#2E4A3D] text-[#1F2421] resize-none"
+                />
+                <p className={`text-[11px] ${bio.trim().length >= PROFILE_MIN_BIO ? 'text-emerald-700' : 'text-[#8C938E]'}`}>
+                  {bio.trim().length}/{PROFILE_MIN_BIO} {locale === 'no' ? 'tegn minimum' : 'caractères minimum'}
+                </p>
+              </div>
+            </>
           )}
 
           {/* Email Field */}

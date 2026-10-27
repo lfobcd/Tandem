@@ -6,6 +6,8 @@ interface PhotoUploadProps {
   value: string;
   onChange: (url: string) => void;
   prenom?: string;
+  /** Photo personnelle uniquement : ni avatars illustratifs, ni lien externe. */
+  uploadOnly?: boolean;
 }
 
 // 4 high-quality preset avatars for quick selection
@@ -36,6 +38,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
   value,
   onChange,
   prenom = 'Utilisateur',
+  uploadOnly = false,
 }) => {
   const { locale } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +253,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
                 <span>{locale === 'no' ? 'Velg fil' : 'Choisir une photo'}</span>
               </button>
 
+              {!uploadOnly && (
               <button
                 type="button"
                 onClick={() => setShowUrlInput(!showUrlInput)}
@@ -258,6 +262,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
                 <Link className="w-3.5 h-3.5" />
                 <span>{locale === 'no' ? 'Bruk bilde-URL' : 'Coller un lien'}</span>
               </button>
+              )}
             </div>
 
             {value && (
@@ -274,7 +279,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
           </div>
 
           {/* URL Input Toggle */}
-          {showUrlInput && (
+          {showUrlInput && !uploadOnly && (
             <div className="flex gap-2 pt-2">
               <input
                 type="url"
@@ -296,6 +301,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       </div>
 
       {/* Quick Avatar Presets */}
+      {!uploadOnly && (
       <div className="p-3 bg-white rounded-xl border border-[#E5E1D8] space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold text-[#525E56] flex items-center gap-1.5">
@@ -342,6 +348,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };

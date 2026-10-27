@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageView, UserProfile } from './types';
-import { dataStore, supabaseAuth, getSupabase, hasLiveSupabaseConfig } from './lib/supabase';
+import { dataStore, supabaseAuth, getSupabase, hasLiveSupabaseConfig, isProfileComplete } from './lib/supabase';
 import { I18nProvider, useTranslation } from './lib/i18n';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -56,7 +56,11 @@ function MainApp() {
       if (res.success && res.user) {
         setCurrentUser(res.user);
         setProfiles(dataStore.getProfiles());
-        setCurrentPage((p) => (p === 'auth' || p === 'landing' ? 'discovery' : p));
+        setCurrentPage((p) =>
+          p === 'auth' || p === 'landing'
+            ? !res.user!.is_factice && !isProfileComplete(res.user) ? 'profile-create' : 'discovery'
+            : p
+        );
         // Nettoie les paramètres OAuth de l'URL
         if (window.location.search || window.location.hash.includes('access_token')) {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -85,8 +89,16 @@ function MainApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Un membre réel doit avoir une photo et une présentation pour utiliser le site
+  const needsCompletion = (u: UserProfile | null | undefined) => Boolean(u && !u.is_factice && !isProfileComplete(u));
+
   const navigateTo = (page: PageView) => {
     const activeUser = currentUser || dataStore.getCurrentUser();
+    if (needsCompletion(activeUser) && (page === 'discovery' || page === 'messages')) {
+      setCurrentPage('profile-create');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if ((page === 'messages' || page === 'profile-create') && !activeUser) {
       handleNavigateAuth('login');
       return;
@@ -98,7 +110,7 @@ function MainApp() {
   const handleLoginSuccess = (user: UserProfile, targetPage: PageView = 'discovery') => {
     setCurrentUser(user);
     setProfiles(dataStore.getProfiles());
-    setCurrentPage(targetPage);
+    setCurrentPage(needsCompletion(user) ? 'profile-create' : targetPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

@@ -13,6 +13,7 @@ import { dataStore } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
 import { MapboxPicker } from '../components/MapboxPicker';
 import { PhotoUpload } from '../components/PhotoUpload';
+import { PROFILE_MIN_BIO, isProfileComplete } from '../lib/supabase';
 import {
   MapPin,
   Clock,
@@ -65,6 +66,7 @@ export const ProfileEditPage: React.FC<ProfileEditPageProps> = ({
     currentUser.envies || (locale === 'no' ? 'Uformell prat over en kaffe og kulturutveksling.' : "Conversation informelle autour d'un café, échanges culturels et correction bienveillante.")
   );
   const [photoUrl, setPhotoUrl] = useState(currentUser.photo_url || '');
+  const [saveError, setSaveError] = useState('');
   const [lieux, setLieux] = useState<PreferredPlace[]>(currentUser.lieux_preferes || []);
   const [disponibilites, setDisponibilites] = useState(currentUser.disponibilites || []);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -110,6 +112,20 @@ export const ProfileEditPage: React.FC<ProfileEditPageProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!photoUrl) {
+      setSaveError(locale === 'no' ? 'Et profilbilde er obligatorisk.' : 'Une photo de profil est obligatoire.');
+      return;
+    }
+    if (bio.trim().length < PROFILE_MIN_BIO) {
+      setSaveError(
+        locale === 'no'
+          ? `Presenter deg selv med minst ${PROFILE_MIN_BIO} tegn.`
+          : `Présentez-vous en au moins ${PROFILE_MIN_BIO} caractères.`
+      );
+      return;
+    }
+    setSaveError('');
 
     const updated = dataStore.updateCurrentUser({
       prenom,
@@ -165,10 +181,22 @@ export const ProfileEditPage: React.FC<ProfileEditPageProps> = ({
               1. {t.authNameLabel} & {t.neighborhoodLabel}
             </h2>
 
+            {!isProfileComplete(currentUser) && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                {locale === 'no'
+                  ? 'For å fortsette må du legge til et profilbilde og en presentasjon (minst 30 tegn).'
+                  : 'Pour continuer, ajoutez une photo de profil et une présentation (30 caractères minimum).'}
+              </div>
+            )}
+            {saveError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">{saveError}</div>
+            )}
+
             <PhotoUpload
               value={photoUrl}
               onChange={setPhotoUrl}
               prenom={prenom}
+              uploadOnly
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

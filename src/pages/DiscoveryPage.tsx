@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PageView, UserProfile, SUPPORTED_LANGUAGES, AvailableLanguage } from '../types';
-import { dataStore } from '../lib/supabase';
+import { isVerifiedProfile, dataStore } from '../lib/supabase';
 import { useTranslation } from '../lib/i18n';
 import { MapboxViewer } from '../components/MapboxViewer';
 import { PaymentModal } from '../components/PaymentModal';
@@ -1258,6 +1258,11 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                           <h3 className="font-display text-lg font-normal text-[#1F2421] group-hover:text-[#2E4A3D] transition-colors truncate">
                             {profile.prenom}
                           </h3>
+                          {isVerifiedProfile(profile) && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-900 border border-sky-300 shrink-0">
+                              ✓ {locale === 'no' ? 'Verifisert' : 'Vérifié'}
+                            </span>
+                          )}
                           {isCurrentUser && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#2E4A3D] text-white shrink-0 flex items-center gap-1 shadow-2xs">
                               <Sparkles className="w-2.5 h-2.5 text-amber-300" />
@@ -1520,6 +1525,11 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                   <h2 className="font-display text-2xl font-normal text-[#1F2421]">
                     {activeProfile.prenom}
                   </h2>
+                  {isVerifiedProfile(activeProfile) && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-900 border border-sky-300">
+                      ✓ {locale === 'no' ? 'Verifisert profil' : 'Profil vérifié'}
+                    </span>
+                  )}
                   {activeProfile.is_factice && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
                       {locale === 'no' ? 'Fiktiv profil (Demo)' : 'Profil factice (Démo)'}
